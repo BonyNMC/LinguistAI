@@ -4,36 +4,6 @@ import { useAuth } from '../App.jsx'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-function getDateRange(period) {
-  const now = new Date()
-  const end = new Date(now)
-  end.setHours(23, 59, 59, 999)
-
-  const start = new Date(now)
-  if (period === 'week') {
-    // Monday of current week
-    const day = now.getDay() === 0 ? 6 : now.getDay() - 1
-    start.setDate(now.getDate() - day)
-    start.setHours(0, 0, 0, 0)
-  } else if (period === '7days') {
-    start.setDate(now.getDate() - 6)
-    start.setHours(0, 0, 0, 0)
-  } else if (period === '30days') {
-    start.setDate(now.getDate() - 29)
-    start.setHours(0, 0, 0, 0)
-  } else if (period === 'month') {
-    start.setDate(1)
-    start.setHours(0, 0, 0, 0)
-  } else if (period === '3months') {
-    start.setMonth(now.getMonth() - 2)
-    start.setDate(1)
-    start.setHours(0, 0, 0, 0)
-  } else if (period === 'all') {
-    return { start: null, end: null }
-  }
-  return { start, end }
-}
-
 function formatDateShort(date) {
   if (!date) return ''
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -43,8 +13,19 @@ function isoDate(date) {
   return date.toISOString().slice(0, 10)
 }
 
+function getTodayStr() {
+  return isoDate(new Date())
+}
+
+function getMondayStr() {
+  const now = new Date()
+  const day = now.getDay() === 0 ? 6 : now.getDay() - 1
+  const mon = new Date(now)
+  mon.setDate(now.getDate() - day)
+  return isoDate(mon)
+}
+
 function estimateTokens(text) {
-  // ~4 chars per token (rough GPT estimate)
   return Math.round(text.length / 4)
 }
 
@@ -54,7 +35,7 @@ function formatTokenWarning(tokens) {
   return                      { level: 'danger', msg: `~${tokens.toLocaleString()} tokens — likely exceeds most AI context windows ⚠️` }
 }
 
-function buildMarkdown({ writings, includeAnalysis, period, periodLabel }) {
+function buildMarkdown({ writings, includeAnalysis, periodLabel }) {
   const header = [
     `# LinguistAI – Writing Export`,
     `**Period:** ${periodLabel}`,
@@ -114,6 +95,8 @@ const PERIOD_OPTIONS = [
   { value: 'month',  label: 'This month' },
   { value: '3months',label: 'Last 3 months' },
   { value: 'all',    label: 'All time' },
+  { value: 'custom', label: '📅 Custom date range…' },
+  { value: 'last_n', label: '🔢 Last N entries…' },
 ]
 
 // ── Main Export Panel ─────────────────────────────────────────────────
@@ -122,64 +105,115 @@ export default function ExportPanel({ currentText }) {
   const [period, setPeriod]               = useState('week')
   const [includeAnalysis, setIncAnalysis] = useState(false)
   const [loading, setLoading]             = useState(false)
-  const [preview, setPreview]             = useState(null) // { count, tokens, warning }
+  const [preview, setPreview]             = useState(null)
   const [open, setOpen]                   = useState(false)
+
+  // Custom date range state
+  const [customFrom, setCustomFrom] = useState(getMondayStr())
+  const [customTo,   setCustomTo]   = useState(getTodayStr())
+
+  // Last-N entries state
+  const [lastN, setLastN] = useState(5)
 
   async function fetchAndPreview() {
     setLoading(true)
     setPreview(null)
-    const { start, end } = getDateRange(period)
+
     let query = supabase
       .from('user_writings')
       .select('id, writing_raw, writing_analysed, created_at')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: true })
-    if (start) query = query.gte('created_at', start.toISOString())
-    if (end)   query = query.lte('created_at', end.toISOString())
+
+    let periodLabel = ''
+
+    if (period === 'last_n') {
+      // Fetch last N — order desc, limit, then reverse for chronological md
+      const { data: raw, error } = await supabase
+        .from('user_writings')
+        .select('id, writing_raw, writing_analysed, created_at')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(Math.max(1, Number(lastN) || 5))
+      setLoading(false)
+      if (error) { alert('Error fetching writings: ' + error.message); return }
+      const writings = (raw ?? []).reverse()
+      periodLabel = `Last ${lastN} entr${lastN === 1 ? 'y' : 'ies'}`
+      finishPreview(writings, periodLabel, null, null)
+      return
+    }
+
+    if (period === 'custom') {
+      const start = new Date(customFrom + 'T00:00:00')
+      const end   = new Date(customTo   + 'T23:59:59')
+      query = query.gte('created_at', start.toISOString()).lte('created_at', end.toISOString())
+      periodLabel = `${formatDateShort(start)} → ${formatDateShort(end)}`
+    } else {
+      const now = new Date()
+      let start = null, end = null
+      end = new Date(now); end.setHours(23, 59, 59, 999)
+      start = new Date(now)
+      if (period === 'week') {
+        const day = now.getDay() === 0 ? 6 : now.getDay() - 1
+        start.setDate(now.getDate() - day); start.setHours(0, 0, 0, 0)
+      } else if (period === '7days') {
+        start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0)
+      } else if (period === '30days') {
+        start.setDate(now.getDate() - 29); start.setHours(0, 0, 0, 0)
+      } else if (period === 'month') {
+        start.setDate(1); start.setHours(0, 0, 0, 0)
+      } else if (period === '3months') {
+        start.setMonth(now.getMonth() - 2); start.setDate(1); start.setHours(0, 0, 0, 0)
+      } else if (period === 'all') {
+        start = null; end = null
+        periodLabel = 'All time'
+      }
+      if (start) { query = query.gte('created_at', start.toISOString()); periodLabel = `${formatDateShort(start)} → ${formatDateShort(end)}` }
+      if (end)   { query = query.lte('created_at', end.toISOString()) }
+      if (period === 'all') periodLabel = 'All time'
+    }
 
     const { data, error } = await query
     setLoading(false)
     if (error) { alert('Error fetching writings: ' + error.message); return }
+    finishPreview(data ?? [], periodLabel)
+  }
 
-    const writings = data ?? []
-    const { start: s, end: e } = getDateRange(period)
-    const label = period === 'all'
-      ? 'All time'
-      : `${formatDateShort(s)} → ${formatDateShort(e)}`
-
-    const md = buildMarkdown({ writings, includeAnalysis, period, periodLabel: label })
+  function finishPreview(writings, periodLabel) {
+    const md = buildMarkdown({ writings, includeAnalysis, periodLabel })
     const tokens = estimateTokens(md)
     const warning = formatTokenWarning(tokens)
-    setPreview({ writings, count: writings.length, tokens, warning, md, label, start: s, end: e })
+
+    // Derive filename date bounds from entries themselves if present
+    const first = writings[0]?.created_at
+    const last  = writings[writings.length - 1]?.created_at
+    const fromStr = first ? isoDate(new Date(first)) : 'start'
+    const toStr   = last  ? isoDate(new Date(last))  : getTodayStr()
+
+    setPreview({ writings, count: writings.length, tokens, warning, md, periodLabel, fromStr, toStr })
   }
 
   function handleDownload() {
     if (!preview) return
-    const { start, end } = preview
-    const fromStr = start ? isoDate(start) : 'all'
-    const toStr   = end   ? isoDate(end)   : new Date().toISOString().slice(0, 10)
-    const suffix  = includeAnalysis ? '_with-analysis' : ''
-    const filename = `LinguistAI_${fromStr}_to_${toStr}_${preview.count}entries${suffix}.md`
+    const suffix = includeAnalysis ? '_with-analysis' : ''
+    const nSuffix = period === 'last_n' ? `_last${lastN}` : `_${preview.fromStr}_to_${preview.toStr}`
+    const filename = `LinguistAI${nSuffix}_${preview.count}entries${suffix}.md`
     triggerDownload(preview.md, filename)
   }
 
-  // Save current textarea text (even without API analysis)
-  function handleSaveCurrent() {
+  // Save current textarea text locally (no API needed)
+  function handleSaveDraft() {
     if (!currentText?.trim()) return
     const now = new Date()
-    const dateStr = isoDate(now)
-    const timeStr = now.toTimeString().slice(0, 5).replace(':', '-')
     const wordCount = currentText.trim().split(/\s+/).length
     const content = [
       `# LinguistAI – Writing Draft`,
       `**Saved:** ${now.toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })}`,
       `**Words:** ${wordCount}`,
-      '',
-      '---',
-      '',
+      '', '---', '',
       currentText,
     ].join('\n')
-    triggerDownload(content, `LinguistAI_draft_${dateStr}_${timeStr}.md`)
+    triggerDownload(content, `LinguistAI_draft_${isoDate(now)}_${now.toTimeString().slice(0,5).replace(':','-')}.md`)
   }
 
   return (
@@ -197,15 +231,11 @@ export default function ExportPanel({ currentText }) {
 
       {open && (
         <div className="export-panel-body animate-fade-in">
-          {/* Save current draft — always visible even without API */}
+          {/* Save current draft locally */}
           {currentText?.trim() && (
             <div className="export-save-draft">
-              <span className="export-draft-label">💾 Save current draft</span>
-              <button
-                className="btn btn-sm btn-secondary"
-                onClick={handleSaveCurrent}
-                id="save-draft-btn"
-              >
+              <span className="export-draft-label">💾 Download current draft (no AI needed)</span>
+              <button className="btn btn-sm btn-secondary" onClick={handleSaveDraft} id="save-draft-btn">
                 Download Draft (.md)
               </button>
             </div>
@@ -215,7 +245,7 @@ export default function ExportPanel({ currentText }) {
 
           {/* Period filter */}
           <div className="export-row">
-            <label className="form-label" htmlFor="export-period">Export period</label>
+            <label className="form-label" htmlFor="export-period" style={{ whiteSpace: 'nowrap' }}>Export period</label>
             <select
               id="export-period"
               className="form-select export-select"
@@ -227,6 +257,55 @@ export default function ExportPanel({ currentText }) {
               ))}
             </select>
           </div>
+
+          {/* Custom date range inputs */}
+          {period === 'custom' && (
+            <div className="export-custom-range">
+              <div className="export-date-row">
+                <div className="export-date-field">
+                  <label className="form-label" htmlFor="export-from">From</label>
+                  <input
+                    id="export-from"
+                    type="date"
+                    className="form-input export-date-input"
+                    value={customFrom}
+                    max={customTo}
+                    onChange={e => { setCustomFrom(e.target.value); setPreview(null) }}
+                  />
+                </div>
+                <span className="export-date-sep">→</span>
+                <div className="export-date-field">
+                  <label className="form-label" htmlFor="export-to">To</label>
+                  <input
+                    id="export-to"
+                    type="date"
+                    className="form-input export-date-input"
+                    value={customTo}
+                    min={customFrom}
+                    max={getTodayStr()}
+                    onChange={e => { setCustomTo(e.target.value); setPreview(null) }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Last N entries input */}
+          {period === 'last_n' && (
+            <div className="export-row">
+              <label className="form-label" htmlFor="export-last-n" style={{ whiteSpace: 'nowrap' }}>Number of entries</label>
+              <input
+                id="export-last-n"
+                type="number"
+                min={1}
+                max={200}
+                className="form-input export-n-input"
+                value={lastN}
+                onChange={e => { setLastN(Math.max(1, Number(e.target.value) || 1)); setPreview(null) }}
+              />
+              <span className="export-hint">most recent entries</span>
+            </div>
+          )}
 
           {/* Include analysis toggle */}
           <div className="export-checkbox-row">
@@ -250,7 +329,9 @@ export default function ExportPanel({ currentText }) {
               disabled={loading}
               id="export-preview-btn"
             >
-              {loading ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Fetching…</> : '🔍 Preview & Check Size'}
+              {loading
+                ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Fetching…</>
+                : '🔍 Preview & Check Size'}
             </button>
           ) : (
             <div className="export-preview">
@@ -260,23 +341,16 @@ export default function ExportPanel({ currentText }) {
               <div className="export-meta">
                 <span>📄 {preview.count} entr{preview.count !== 1 ? 'ies' : 'y'}</span>
                 <span>·</span>
-                <span>{preview.label}</span>
+                <span>{preview.periodLabel}</span>
               </div>
               {preview.count === 0 ? (
                 <p className="export-empty">No writings found for this period.</p>
               ) : (
                 <div className="export-actions">
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={handleDownload}
-                    id="export-download-btn"
-                  >
+                  <button className="btn btn-primary btn-sm" onClick={handleDownload} id="export-download-btn">
                     ⬇️ Download .md
                   </button>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setPreview(null)}
-                  >
+                  <button className="btn btn-ghost btn-sm" onClick={() => setPreview(null)}>
                     Change filter
                   </button>
                 </div>

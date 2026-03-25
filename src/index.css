@@ -1409,4 +1409,42 @@ input, textarea, select { font-family: inherit; }
   .export-panel-body { padding: 0 var(--space-4) var(--space-4); }
   .export-save-draft { flex-direction: column; align-items: flex-start; }
   .export-select { max-width: 100%; }
+  .export-date-row { flex-direction: column; gap: var(--space-2); }
+  .export-date-sep { display: none; }
 }
+
+/* Custom date range */
+.export-custom-range { margin-top: calc(var(--space-2) * -1); }
+.export-date-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.export-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+.export-date-input {
+  width: auto;
+  padding: 8px 12px;
+  font-size: var(--font-size-sm);
+  color-scheme: dark;
+}
+body.light-mode .export-date-input { color-scheme: light; }
+.export-date-sep {
+  font-size: 1.1rem;
+  color: var(--clr-text-muted);
+  padding-bottom: 10px;
+  flex-shrink: 0;
+}
+
+/* Last-N number input */
+.export-n-input {
+  width: 80px;
+  padding: 8px 12px;
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+

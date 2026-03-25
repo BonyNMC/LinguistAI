@@ -124,6 +124,8 @@ export default function WritingSpace() {
   const [error, setError]       = useState(() => readSS(SS_ERROR, ''))
   const [addedWords, setAddedWords] = useState(() => new Set(readSS(SS_ADDED, [])))
   const [loading, setLoading]   = useState(false)
+  const [saving, setSaving]     = useState(false)  // for Save button
+  const [savedFlash, setSavedFlash] = useState(false)
 
   // Keep sessionStorage in sync with state
   useEffect(() => { writeSS(SS_TEXT,   text)          }, [text])
@@ -147,6 +149,25 @@ export default function WritingSpace() {
       setError(err.message || 'Analysis failed. Please check your API key in Settings.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Save raw writing to DB without AI analysis (for users without an API key)
+  async function handleSave() {
+    if (!text.trim() || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      const { error: err } = await supabase
+        .from('user_writings')
+        .insert({ user_id: session.user.id, writing_raw: text })
+      if (err) throw err
+      setSavedFlash(true)
+      setTimeout(() => setSavedFlash(false), 2000)
+    } catch (err) {
+      setError('Save failed: ' + err.message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -218,6 +239,15 @@ export default function WritingSpace() {
               id="clear-writing-btn"
             >
               Clear
+            </button>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleSave}
+              disabled={saving || !text.trim()}
+              id="save-writing-btn"
+              title="Save writing to database (no AI needed)"
+            >
+              {saving ? <span className="spinner" style={{ width: 12, height: 12 }} /> : savedFlash ? '✓ Saved!' : '💾 Save'}
             </button>
             <button
               className="btn btn-primary"
