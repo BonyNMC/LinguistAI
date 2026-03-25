@@ -147,8 +147,8 @@ export default function NavBar() {
 
           {/* Theme toggle */}
           <button className="theme-toggle-btn" onClick={toggleTheme}>
-            <span>{isLight ? '🌙' : '☀️'}</span>
-            {isLight ? 'Dark Mode' : 'Light Mode'}
+            <span>{isLight ? '☀️' : '🌙'}</span>
+            {isLight ? 'Light Mode' : 'Dark Mode'}
           </button>
 
           <button className="nav-item btn-ghost" onClick={handleSignOut} style={{ marginTop: 4 }}>
