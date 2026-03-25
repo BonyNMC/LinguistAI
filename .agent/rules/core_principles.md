@@ -222,3 +222,20 @@ avbar-pending-count.
 - **Zero backend**: Pure browser Blob + URL.createObjectURL download, no Edge Function needed.
 
 | 2026-03-25 | Phase 14: Writing Export Panel. Markdown download with period filter, token estimate warning, save-draft button for API-less users. |
+
+
+### Phase 14 Update (2026-03-25) — Save to DB + Export Enhancements
+
+#### Save to Database button (WritingSpace)
+- Added 💾 Save button between Clear and Analyze Writing in WritingSpace.jsx.
+- Inserts writing_raw directly into user_writings Supabase table with NO API key needed.
+- Shows ✓ Saved! flash for 2 seconds on success.
+- Purpose: allows users without an API key to still persist their writing for later AI export.
+
+#### Export Panel — new filter modes
+- 📅 Custom date range: two date pickers (from/to) — constrained by actual today and relative to each other.
+- 🔢 Last N entries: number input, fetches N most recent entries in chronological order.
+- File naming now uses actual entry timestamps from results, not filter bounds.
+- color-scheme: dark/light on date inputs respects current theme.
+
+| 2026-03-25 | Phase 14 update: Save-to-DB button (no API needed). Export: custom date range picker + last-N entries number filter. |
