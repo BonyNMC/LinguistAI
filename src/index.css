@@ -1245,3 +1245,168 @@ input, textarea, select { font-family: inherit; }
   .page-subtitle { font-size: var(--font-size-xs); }
   .btn { padding: 8px 14px; font-size: var(--font-size-xs); }
 }
+
+/* ============================================================
+   Phase 14 – Export Panel
+   ============================================================ */
+.export-panel {
+  margin-top: var(--space-6);
+  padding: 0;
+  overflow: hidden;
+}
+
+.export-panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4) var(--space-6);
+  background: none;
+  border: none;
+  color: var(--clr-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+.export-panel-toggle:hover {
+  color: var(--clr-text-primary);
+  background: var(--clr-bg-glass);
+}
+.export-chevron {
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: var(--clr-text-muted);
+}
+
+.export-panel-body {
+  padding: 0 var(--space-6) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Save current draft banner */
+.export-save-draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  background: var(--clr-bg-elevated);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  flex-wrap: wrap;
+}
+.export-draft-label {
+  font-size: var(--font-size-sm);
+  color: var(--clr-text-secondary);
+}
+
+.export-divider {
+  border: none;
+  border-top: 1px solid var(--clr-border);
+  margin: 0;
+}
+
+/* Filter row */
+.export-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.export-select {
+  width: auto;
+  min-width: 160px;
+  flex: 1;
+  max-width: 240px;
+}
+
+/* Checkbox row */
+.export-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.export-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--clr-text-secondary);
+  cursor: pointer;
+}
+.export-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--clr-accent);
+  cursor: pointer;
+}
+.export-hint {
+  font-size: var(--font-size-xs);
+  color: var(--clr-text-muted);
+  font-style: italic;
+}
+
+/* Preview result block */
+.export-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Token size badge */
+.export-token-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  width: fit-content;
+}
+.export-token-badge.token-ok {
+  background: var(--clr-success-bg);
+  color: var(--clr-success);
+  border: 1px solid rgba(34,197,94,0.2);
+}
+.export-token-badge.token-warn {
+  background: var(--clr-warning-bg);
+  color: var(--clr-warning);
+  border: 1px solid rgba(245,158,11,0.2);
+}
+.export-token-badge.token-danger {
+  background: var(--clr-danger-bg);
+  color: var(--clr-danger);
+  border: 1px solid rgba(239,68,68,0.2);
+}
+
+.export-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--clr-text-muted);
+}
+
+.export-empty {
+  font-size: var(--font-size-sm);
+  color: var(--clr-text-muted);
+  font-style: italic;
+}
+
+.export-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .export-panel-body { padding: 0 var(--space-4) var(--space-4); }
+  .export-save-draft { flex-direction: column; align-items: flex-start; }
+  .export-select { max-width: 100%; }
+}

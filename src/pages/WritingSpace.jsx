@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../App.jsx'
 import { SpeakButton } from '../components/SpeakButton.jsx'
+import ExportPanel from '../components/ExportPanel.jsx'
 
 // ── sessionStorage keys ──────────────────────────────────────────
 const SS_TEXT   = 'linguist_writing_text'
@@ -238,6 +239,8 @@ export default function WritingSpace() {
       )}
 
       <AnalysisResult result={result} onAddWord={handleAddWord} addedWords={addedWords} />
+
+      <ExportPanel currentText={text} />
     </div>
   )
 }
