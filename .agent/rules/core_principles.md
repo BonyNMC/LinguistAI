@@ -146,3 +146,60 @@ Only `analysed_text_marked_up` may contain HTML (mark-error, mark-recall, mark-s
 Frontend enforces this with a `stripHtml()` sanitizer in WritingSpace.jsx as a safety net.
 
 | 2026-03-24 | Implemented SM-2 focus word selection (top 5) for Active Recall Report. Updated Native Rewrite to model study vocabulary in context. Added HTML sanitization for plain-text fields. |
+
+---
+
+## Phase 13 - UX & Admin Fixes (2026-03-25)
+
+### Fix 1: Auth White Screen
+- Root cause: AuthForm.jsx was using className="auth-page" (no CSS defined) instead of className="auth-wrapper" (correct class with centered layout). Fixed by correcting the className.
+
+### Fix 2: Admin Notifications for New Registrations
+- **AdminDashboard**: Added 3 stat cards (Total / Active / Pending). Added orange warning banner when pending > 0. Added Supabase Realtime subscription (channel dmin-user-profiles) that auto-refreshes user list on any user_profiles INSERT/UPDATE/DELETE.
+- **NavBar**: Admin users now see a red dot badge on the Dashboard nav item showing live pending count, using Supabase Realtime channel 
+avbar-pending-count.
+- **Supabase**: Enabled ALTER PUBLICATION supabase_realtime ADD TABLE user_profiles via migration.
+
+### Fix 3: Admin Dashboard Layout
+- Added .admin-wrapper { display: flex } and .admin-main { flex: 1; margin-left: var(--nav-width); } so the admin page content isn't hidden behind the fixed sidebar.
+- Added responsive override: on mobile (<= 640px), .admin-main gets margin-left: 0 and padding-top: calc(56px + space-4) for the hamburger top bar.
+- Added missing CSS classes: .status-badge, .role-badge, .admin-title, .admin-subtitle, .btn-refresh, .skeleton-row, .admin-count, .admin-error, .admin-pending-banner, .admin-td-email, .admin-td-date.
+
+### Fix 4: Dark / Light Mode Toggle
+- Added ody.light-mode { ... } token overrides: white/gray background, dark text, same accent.
+- Added body 	ransition: background, color for smooth switching.
+- NavBar sidebar footer has a ??/?? toggle button. Preference persisted in localStorage key linguistai-theme. Theme applied on module load before first render to avoid flash.
+- Added CSS: .theme-toggle-btn, .nav-badge.
+
+### Missing WaitingRoom CSS
+- Added all previously missing CSS classes used by WaitingRoom.jsx: .waiting-room-logo, .waiting-room-status-icon, .waiting-room-body, .waiting-room-notice, .notice-icon, .btn-sign-out.
+
+| 2026-03-25 | Fixed auth white screen (auth-page ? auth-wrapper). Added admin realtime notifications and pending banner. Fixed admin dashboard layout (margin-left offset). Added dark/light mode toggle with localStorage persistence. |
+
+
+---
+
+## Phase 13 - UX and Admin Fixes (2026-03-25)
+
+### Fix 1: Auth White Screen
+- Root cause: AuthForm.jsx used className=auth-page (no CSS) instead of auth-wrapper. Fixed.
+
+### Fix 2: Admin Notifications for New Registrations
+- AdminDashboard: 3 stat cards (Total/Active/Pending), orange warning banner when pending>0, Supabase Realtime channel auto-refreshes user list.
+- NavBar: red badge on Dashboard nav item shows live pending count via Realtime.
+- Supabase: ALTER PUBLICATION supabase_realtime ADD TABLE user_profiles.
+
+### Fix 3: Admin Dashboard Layout
+- Added .admin-wrapper and .admin-main with margin-left:var(--nav-width) so content not hidden behind sidebar.
+- Mobile override: margin-left:0, padding-top for hamburger topbar.
+- Added missing CSS: .status-badge, .role-badge, .admin-title, .btn-refresh, .skeleton-row, etc.
+
+### Fix 4: Dark/Light Mode Toggle
+- body.light-mode CSS token overrides (white/gray bg, dark text).
+- NavBar footer: sun/moon toggle button. Preference in localStorage key linguistai-theme.
+- Theme applied on module load (no flash). CSS: .theme-toggle-btn, .nav-badge.
+
+### WaitingRoom CSS
+- Added missing: .waiting-room-logo, .waiting-room-status-icon, .waiting-room-body, .waiting-room-notice, .notice-icon, .btn-sign-out.
+
+| 2026-03-25 | Phase 13: Fixed auth white screen, admin realtime notifications, admin layout offset, dark/light mode toggle. |
