@@ -104,7 +104,7 @@
 
 ## ??? Text-to-Speech (Phase 12)
 
-Web Speech API is used for TTS — zero cost, zero external dependency, works natively in Chrome/Edge/Safari.
+Web Speech API is used for TTS ï¿½ zero cost, zero external dependency, works natively in Chrome/Edge/Safari.
 
 **Implementation:**
 - `src/components/SpeakButton.jsx` exports `useSpeech()` hook and `<SpeakButton text="..." />` component
@@ -135,13 +135,13 @@ The `analyze-writing` Edge Function selects only the **top 5 priority words** fo
 This prevents recall fatigue as the vocabulary list grows. The remaining study words are still highlighted (green spans) in the Analysed Text, but the Report only judges the 5 focus words.
 
 ### Native Rewrite = Vocabulary Model (Comprehensible Input)
-The Native Rewrite prompt instructs the AI to **naturally incorporate 1-2 of the session's focus words** into the rewrite — only where contextually appropriate. This implements:
+The Native Rewrite prompt instructs the AI to **naturally incorporate 1-2 of the session's focus words** into the rewrite ï¿½ only where contextually appropriate. This implements:
 - **Comprehensible Input (Krashen i+1)**: Learner sees their own study words used correctly in a native-speaker model of their real work context
 - **Output Hypothesis (Swain)**: Writing forces the brain to search for opportunities to use vocabulary ? deeper consolidation
 - **Spaced Repetition (SM-2)**: Only the most-due words are surfaced each session
 
 ### HTML Safety Rule
-`recall_report` and `native_spoken_rewrite` are PLAIN TEXT fields — no HTML spans.
+`recall_report` and `native_spoken_rewrite` are PLAIN TEXT fields ï¿½ no HTML spans.
 Only `analysed_text_marked_up` may contain HTML (mark-error, mark-recall, mark-suggestion spans).
 Frontend enforces this with a `stripHtml()` sanitizer in WritingSpace.jsx as a safety net.
 
@@ -203,3 +203,22 @@ avbar-pending-count.
 - Added missing: .waiting-room-logo, .waiting-room-status-icon, .waiting-room-body, .waiting-room-notice, .notice-icon, .btn-sign-out.
 
 | 2026-03-25 | Phase 13: Fixed auth white screen, admin realtime notifications, admin layout offset, dark/light mode toggle. |
+
+
+---
+
+## Phase 14 - Writing Data Export (2026-03-25)
+
+### Feature: ExportPanel
+- New component: src/components/ExportPanel.jsx â€” collapsible card at the bottom of WritingSpace.
+- **Period filter**: This week (default), Last 7 days, Last 30 days, This month, Last 3 months, All time.
+- **Content toggle**: Raw writing only (default) OR include AI analysis (native rewrite + recall report).
+- **Preview step**: fetches count + estimates token size BEFORE download to warn user.
+- **Token size badge**: Green (<50k), Yellow (50-100k), Red (>100k) with message about AI context window.
+- **Markdown format**: Header with period/count/date, then numbered entries with date + word count heading, writing_raw body, optional analysis sections, tip prompt for AI analysis.
+- **File naming**: LinguistAI_YYYY-MM-DD_to_YYYY-MM-DD_Nentries.md (or _with-analysis.md).
+- **Save Draft button**: Always visible if textarea has text. Downloads current writing as LinguistAI_draft_YYYY-MM-DD_HH-MM.md â€” useful for users without API key.
+- **Placement**: Bottom of WritingSpace page content area.
+- **Zero backend**: Pure browser Blob + URL.createObjectURL download, no Edge Function needed.
+
+| 2026-03-25 | Phase 14: Writing Export Panel. Markdown download with period filter, token estimate warning, save-draft button for API-less users. |
