@@ -5,26 +5,20 @@ import NavBar from '../components/NavBar.jsx'
 const STATUS_OPTIONS = ['pending', 'active', 'suspended']
 
 const STATUS_BADGE = {
-  pending: { label: 'Pending', cls: 'badge-pending' },
-  active: { label: 'Active', cls: 'badge-active' },
+  pending:   { label: 'Pending',   cls: 'badge-pending' },
+  active:    { label: 'Active',    cls: 'badge-active' },
   suspended: { label: 'Suspended', cls: 'badge-suspended' },
 }
 
 export default function AdminDashboard() {
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [users, setUsers]       = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
   const [updating, setUpdating] = useState({}) // { [userId]: true }
 
   async function loadUsers() {
     setLoading(true)
     setError(null)
-    // Join user_profiles + auth.users email via a view or just read profiles
-    // We'll read profiles and email from auth.users via the admin API isn't available to anon,
-    // so we read what's available to admin role: id, role, account_status, created_at
-    // Email is in auth schema — we use a raw SQL RPC or just display truncated id.
-    // Best approach: create a DB view or use the service role in an edge function.
-    // Here we'll use a simple select and show email via auth.users metadata if available.
     const { data, error: err } = await supabase
       .from('user_profiles')
       .select('id, role, account_status, created_at')
@@ -33,10 +27,6 @@ export default function AdminDashboard() {
     if (err) {
       setError(err.message)
     } else {
-      // Fetch emails using the auth admin API view
-      // Supabase exposes auth.users only to service role, so we use a separate RPC or
-      // just display user IDs. For a clean UX we'll use the auth.users via a security definer function.
-      // For now, decorate with emails from a fallback RPC if available, else show IDs.
       const enriched = await enrichWithEmails(data ?? [])
       setUsers(enriched)
     }
@@ -72,7 +62,21 @@ export default function AdminDashboard() {
     setUpdating(prev => ({ ...prev, [userId]: false }))
   }
 
-  useEffect(() => { loadUsers() }, [])
+  useEffect(() => {
+    loadUsers()
+
+    // Realtime: reload when a new user is inserted
+    const channel = supabase
+      .channel('admin-user-profiles')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_profiles' },
+        () => { loadUsers() }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   function formatDate(ts) {
     if (!ts) return '—'
@@ -82,6 +86,10 @@ export default function AdminDashboard() {
   function shortId(id) {
     return id ? id.slice(0, 8) + '…' : '—'
   }
+
+  const totalUsers   = users.length
+  const activeUsers  = users.filter(u => u.account_status === 'active').length
+  const pendingUsers = users.filter(u => u.account_status === 'pending').length
 
   return (
     <div className="admin-wrapper">
@@ -95,6 +103,33 @@ export default function AdminDashboard() {
           <button className="btn-refresh" onClick={loadUsers} disabled={loading}>
             {loading ? <span className="spinner" style={{ width: 16, height: 16 }} /> : '↻ Refresh'}
           </button>
+        </div>
+
+        {/* Pending notification banner */}
+        {pendingUsers > 0 && (
+          <div className="admin-pending-banner">
+            <span>🔔</span>
+            <span>
+              <strong>{pendingUsers} user{pendingUsers !== 1 ? 's' : ''}</strong> awaiting
+              activation — scroll down to change their status to <em>Active</em>.
+            </span>
+          </div>
+        )}
+
+        {/* Stats */}
+        <div className="admin-stats">
+          <div className="admin-stat-card">
+            <div className="admin-stat-value">{totalUsers}</div>
+            <div className="admin-stat-label">Total Users</div>
+          </div>
+          <div className="admin-stat-card">
+            <div className="admin-stat-value">{activeUsers}</div>
+            <div className="admin-stat-label">Active</div>
+          </div>
+          <div className={`admin-stat-card${pendingUsers > 0 ? ' stat-pending' : ''}`}>
+            <div className={`admin-stat-value${pendingUsers > 0 ? ' stat-warning' : ''}`}>{pendingUsers}</div>
+            <div className="admin-stat-label">⏳ Pending Activation</div>
+          </div>
         </div>
 
         {error && (

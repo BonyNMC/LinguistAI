@@ -31,7 +31,7 @@ export default function AuthForm() {
   }
 
   return (
-    <div className="auth-page">
+    <div className="auth-wrapper">
       <div className="auth-card animate-fade-in">
         {/* Logo */}
         <div className="auth-logo">
