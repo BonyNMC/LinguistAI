@@ -1,0 +1,13 @@
+# LinguistAI – Historical Changelog & Phases
+
+*(This file is for historical reference. AI agents do not need to read this file unless explicitly investigating past changes.)*
+
+## 📅 Change Log & Key Decisions
+- **2026-03-23**: Confirmed isolated project "LinguistAI". Multi-Provider Support added. Fixed 401 Unauthorized via internal JWT validation. Added `sessionStorage` persistence to Writing Space. Implemented explicit Recall Prompt Strategy.
+- **2026-03-24**: **Phase 11**: Transitioned to BYOK and commercial access model. Added `account_status` and `role`. Edge Function gating.
+- **2026-03-24**: **Phase 12**: Web Speech API TTS. Mobile Responsive updates. Added SM-2 focus word selection (top 5) for Active Recall Report and Native Rewrite modeling. HTML sanitization.
+- **2026-03-25**: **Phase 13**: UX & Admin Fixes. Fixed Auth white screen. Added admin realtime notifications for pending registrations. Fixed Admin Dashboard layout offset. Added Dark/Light mode toggle. Added WaitingRoom CSS.
+- **2026-03-25**: **Phase 14**: Writing Data Export. Added `ExportPanel.jsx`. Period filter, Token size badge, Markdown file download. Allowed pure database saving without API key via **Save** button. Added Custom date range picker and Last N entries filters.
+- **2026-04-06**: **Phase 15**: 5 major new features — (1) **AI Conversation Mode** (`/conversation` page, `conversation_sessions` DB table, `chat-message` + `analyze-conversation` Edge Functions). (2) **Shadowing / Micro-Speech** (Web Speech API in Review result phase). (3) **Linked Story Challenges** (`generate-challenge` updated with `story_mode`/`story_context` params). (4) **CEFR Implicit Profiling** (3 new columns on `user_profiles`, Weighted Moving Average detection in `analyze-writing` + `analyze-conversation`, i+1 hypothesis in prompts, CEFR card in Settings). (5) **Leaderboard** (`/leaderboard` page, `leaderboard` DB view, `user_public_profiles` table, display_name opt-in/out in Settings).
+
+*(Refer to git history or previous commits for granular changes. Core architectural rules are maintained in the modular `.md` files.)*

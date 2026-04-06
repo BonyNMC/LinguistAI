@@ -9,6 +9,8 @@ import Review from './pages/Review.jsx'
 import Settings from './pages/Settings.jsx'
 import WaitingRoom from './pages/WaitingRoom.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
+import ConversationMode from './pages/ConversationMode.jsx'
+import Leaderboard from './pages/Leaderboard.jsx'
 
 export const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -63,8 +65,10 @@ function AppLayout() {
         <Routes>
           <Route path="/" element={<Navigate to="/writing" replace />} />
           <Route path="/writing" element={<WritingSpace />} />
+          <Route path="/conversation" element={<ConversationMode />} />
           <Route path="/study-list" element={<StudyList />} />
           <Route path="/review" element={<Review />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

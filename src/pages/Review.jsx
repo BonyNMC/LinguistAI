@@ -26,10 +26,17 @@ export default function Review() {
   const [loading, setLoading] = useState(true)
   const [currentIdx, setCurrentIdx] = useState(0)
   const [phase, setPhase] = useState('idle') // idle | generating | challenge | evaluating | result
-  const [challenge, setChallenge] = useState(null) // { challenge_prompt, target_word }
+  const [challenge, setChallenge] = useState(null)
   const [userSentence, setUserSentence] = useState('')
-  const [evalResult, setEvalResult] = useState(null) // { passed, score, feedback }
+  const [evalResult, setEvalResult] = useState(null)
   const [error, setError] = useState('')
+  const [storyMode, setStoryMode] = useState(false)
+  const [storyContext, setStoryContext] = useState(null)
+  const [shadowingActive, setShadowingActive] = useState(false)
+  const [shadowingText, setShadowingText] = useState('')
+  const [recognizedText, setRecognizedText] = useState('')
+  const [shadowingScore, setShadowingScore] = useState(null)
+  const [shadowingListening, setShadowingListening] = useState(false)
 
   useEffect(() => { fetchDue() }, [session])
 
@@ -55,12 +62,21 @@ export default function Review() {
     setChallenge(null)
     setEvalResult(null)
     setUserSentence('')
+    setShadowingActive(false)
+    setShadowingScore(null)
+    setRecognizedText('')
     try {
       const { data, error: fnErr } = await supabase.functions.invoke('generate-challenge', {
-        body: { vocab_id: current.vocab_master.id, user_id: session.user.id }
+        body: {
+          vocab_id: current.vocab_master.id,
+          user_id: session.user.id,
+          story_mode: storyMode,
+          story_context: storyContext,
+        }
       })
       if (fnErr) throw fnErr
       if (data?.error) throw new Error(data.error)
+      if (storyMode && data.story_context) setStoryContext(data.story_context)
       setChallenge(data)
       setPhase('challenge')
     } catch (e) {
@@ -112,6 +128,7 @@ export default function Review() {
     if (currentIdx + 1 >= dueWords.length) {
       fetchDue()
       setCurrentIdx(0)
+      if (storyMode) setStoryContext(null)
     } else {
       setCurrentIdx(i => i + 1)
     }
@@ -120,6 +137,47 @@ export default function Review() {
     setEvalResult(null)
     setUserSentence('')
     setError('')
+    setShadowingActive(false)
+    setShadowingScore(null)
+    setRecognizedText('')
+  }
+
+  function startShadowing(text) {
+    setShadowingText(text)
+    setShadowingActive(true)
+    setShadowingScore(null)
+    setRecognizedText('')
+    setShadowingListening(false)
+    window.speechSynthesis.cancel()
+    const utt = new SpeechSynthesisUtterance(text)
+    utt.lang = 'en-US'
+    utt.rate = 0.85
+    window.speechSynthesis.speak(utt)
+  }
+
+  function startListening() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) { setError('Speech recognition is not supported in this browser (Chrome/Edge only).'); return }
+    const rec = new SR()
+    rec.lang = 'en-US'
+    rec.interimResults = false
+    rec.maxAlternatives = 1
+    setShadowingListening(true)
+    setRecognizedText('')
+    setShadowingScore(null)
+    rec.onresult = (e) => {
+      const spoken = e.results[0][0].transcript
+      setRecognizedText(spoken)
+      const targetWords = shadowingText.toLowerCase().replace(/[^a-z\s]/g,'').split(/\s+/).filter(Boolean)
+      const spokenWords = spoken.toLowerCase().replace(/[^a-z\s]/g,'').split(/\s+/).filter(Boolean)
+      const hits = spokenWords.filter(w => targetWords.includes(w)).length
+      const score = targetWords.length > 0 ? Math.round((hits / targetWords.length) * 100) : 0
+      setShadowingScore(score)
+      setShadowingListening(false)
+    }
+    rec.onerror = () => { setShadowingListening(false) }
+    rec.onend = () => { setShadowingListening(false) }
+    rec.start()
   }
 
   if (loading) return (
@@ -134,6 +192,25 @@ export default function Review() {
         <div className="page-header-text">
           <h1 className="page-title">Review</h1>
           <p className="page-subtitle">Active recall through writing challenges. Spaced repetition keeps you sharp.</p>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <label htmlFor="story-mode-toggle" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)', cursor: 'pointer' }}>📖 Story Mode</label>
+          <button
+            id="story-mode-toggle"
+            role="switch"
+            aria-checked={storyMode}
+            onClick={() => { setStoryMode(m => !m); setStoryContext(null) }}
+            style={{
+              width: 44, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer',
+              background: storyMode ? 'var(--clr-accent)' : 'var(--clr-bg-elevated)',
+              position: 'relative', transition: 'background .2s', flexShrink: 0,
+            }}
+          >
+            <span style={{
+              display: 'block', width: 18, height: 18, borderRadius: '50%', background: '#fff',
+              position: 'absolute', top: 3, left: storyMode ? 23 : 3, transition: 'left .2s',
+            }} />
+          </button>
         </div>
       </div>
 
@@ -182,11 +259,22 @@ export default function Review() {
               {phase === 'idle' && (
                 <div className="card" style={{ textAlign: 'center', padding: 'var(--space-10)' }}>
                   <div style={{ fontSize: 40, marginBottom: 'var(--space-4)' }}>✍️</div>
+                  {storyMode && storyContext && (
+                    <div style={{ background: 'var(--clr-bg-base)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', marginBottom: 'var(--space-4)', textAlign: 'left', fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', lineHeight: 1.7 }}>
+                      <div style={{ fontWeight: 700, color: 'var(--clr-accent-light)', marginBottom: 4 }}>📖 Story so far…</div>
+                      {storyContext.slice(0, 280)}{storyContext.length > 280 ? '…' : ''}
+                    </div>
+                  )}
                   <p style={{ color: 'var(--clr-text-secondary)', marginBottom: 'var(--space-6)' }}>
-                    Your AI coach will create a real-world scenario for you to write a sentence using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.
+                    {storyMode
+                      ? storyContext
+                        ? <>The story continues… use <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong> in the next scene.</>
+                        : <>Start an epic story using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.</>
+                      : <>Your AI coach will create a real-world scenario for you to write a sentence using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.</>
+                    }
                   </p>
                   <button className="btn btn-primary btn-lg" onClick={handleGenerateChallenge} id="start-challenge-btn">
-                    🎯 Start Challenge
+                    {storyMode ? '📖 Continue Story' : '🎯 Start Challenge'}
                   </button>
                 </div>
               )}
@@ -268,9 +356,55 @@ export default function Review() {
                       </div>
                     </div>
                   )}
-                  <button className="btn btn-primary" onClick={handleNext} id="next-word-btn">
-                    {currentIdx + 1 >= dueWords.length ? '✅ Finish Session' : 'Next Word →'}
-                  </button>
+
+                  <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button className="btn btn-primary" onClick={handleNext} id="next-word-btn">
+                      {currentIdx + 1 >= dueWords.length ? '\u2705 Finish Session' : 'Next Word \u2192'}
+                    </button>
+                    {evalResult.feedback && !shadowingActive && (
+                      <button className="btn btn-secondary" id="shadowing-mode-btn" onClick={() => startShadowing(evalResult.feedback)}>
+                        🎙 Shadowing Mode
+                      </button>
+                    )}
+                  </div>
+
+                  {shadowingActive && (
+                    <div style={{ marginTop: 'var(--space-5)', borderTop: '1px solid var(--clr-border)', paddingTop: 'var(--space-5)' }}>
+                      <div className="section-title">🎙 Shadowing Practice</div>
+                      <div style={{ background: 'var(--clr-bg-base)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', marginBottom: 'var(--space-4)', fontSize: 'var(--font-size-sm)', lineHeight: 1.8, color: 'var(--clr-text-secondary)' }}>
+                        {shadowingText}
+                      </div>
+                      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => startShadowing(shadowingText)} id="replay-tts-btn">🔊 Replay Audio</button>
+                        <button
+                          className={`btn btn-sm ${shadowingListening ? 'btn-danger' : 'btn-primary'}`}
+                          onClick={startListening}
+                          disabled={shadowingListening}
+                          id="start-listening-btn"
+                        >
+                          {shadowingListening ? '\u23fa Listening\u2026' : '\uD83C\uDF99 Speak Now'}
+                        </button>
+                      </div>
+                      {recognizedText && (
+                        <div style={{ marginBottom: 'var(--space-4)' }}>
+                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', marginBottom: 4 }}>You said:</div>
+                          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-primary)', fontStyle: 'italic' }}>\u201c{recognizedText}\u201d</div>
+                        </div>
+                      )}
+                      {shadowingScore !== null && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1, height: 8, background: 'var(--clr-bg-elevated)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                            <div style={{ width: `${shadowingScore}%`, height: '100%', background: shadowingScore >= 70 ? 'var(--clr-success)' : shadowingScore >= 40 ? 'var(--clr-warning)' : 'var(--clr-danger)', borderRadius: 'var(--radius-full)', transition: 'width 0.5s ease' }} />
+                          </div>
+                          <div style={{ fontWeight: 800, fontSize: 'var(--font-size-lg)', color: shadowingScore >= 70 ? 'var(--clr-success)' : shadowingScore >= 40 ? 'var(--clr-warning)' : 'var(--clr-danger)' }}>{shadowingScore}%</div>
+                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)' }}>{shadowingScore >= 70 ? '\uD83C\uDF89 Excellent!' : shadowingScore >= 40 ? '\uD83D\uDC4D Good try!' : '\uD83D\uDCAA Try again!'}</div>
+                        </div>
+                      )}
+                      {!window.SpeechRecognition && !window.webkitSpeechRecognition && (
+                        <div className="alert alert-info" style={{ marginTop: 'var(--space-3)' }}>\u2139\uFE0F Speech recognition requires Chrome or Edge browser.</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

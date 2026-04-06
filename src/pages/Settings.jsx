@@ -99,6 +99,9 @@ export default function Settings() {
     focus_topic: 'General Professional English',
     llm_provider: 'google',
     llm_model: 'gemini-2.0-flash',
+    cefr_detected: null,
+    cefr_confidence: 0,
+    writing_samples_count: 0,
   })
   const [apiKey, setApiKey] = useState('')
   const [cfAccountId, setCfAccountId] = useState('')
@@ -107,15 +110,27 @@ export default function Settings() {
   const [savingKey, setSavingKey] = useState(false)
   const [profileMsg, setProfileMsg] = useState(null)
   const [keyMsg, setKeyMsg] = useState(null)
+  const [publicProfile, setPublicProfile] = useState({ display_name: '', show_on_leaderboard: true })
+  const [savingPublic, setSavingPublic] = useState(false)
+  const [publicMsg, setPublicMsg] = useState(null)
 
   useEffect(() => {
     async function loadProfile() {
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('target_level, ai_persona, focus_topic, llm_provider, llm_model')
+        .select('target_level, ai_persona, focus_topic, llm_provider, llm_model, cefr_detected, cefr_confidence, writing_samples_count')
         .eq('id', session.user.id)
         .single()
       if (!error && data) setProfile(prev => ({ ...prev, ...data }))
+
+      // Load public profile
+      const { data: pub } = await supabase
+        .from('user_public_profiles')
+        .select('display_name, show_on_leaderboard')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+      if (pub) setPublicProfile({ display_name: pub.display_name || '', show_on_leaderboard: pub.show_on_leaderboard ?? true })
+
       setLoadingProfile(false)
     }
     loadProfile()
@@ -322,6 +337,62 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* ── Section B2: CEFR Language Profile ── */}
+      {profile.writing_samples_count >= 1 && (
+        <div className="card" style={{ marginBottom: 'var(--space-6)', borderColor: 'rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
+            <div style={{ fontSize: 24 }}>🎯</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)' }}>Your Language Profile</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-muted)' }}>Detected automatically from your writing samples.</div>
+            </div>
+            <span className="badge badge-accent" style={{ marginLeft: 'auto' }}>AI Detected</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
+            {/* CEFR Badge */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                width: 80, height: 80, borderRadius: 'var(--radius-full)',
+                background: 'var(--clr-accent-gradient)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: '#fff',
+                boxShadow: '0 0 24px rgba(99,102,241,0.4)',
+              }}>
+                {profile.cefr_detected || '?'}
+              </div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', marginTop: 6 }}>Detected Level</div>
+            </div>
+
+            {/* Stats */}
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)', marginBottom: 'var(--space-3)' }}>
+                Based on <strong style={{ color: 'var(--clr-text-primary)' }}>{profile.writing_samples_count}</strong> writing {profile.writing_samples_count === 1 ? 'sample' : 'samples'} analyzed.
+              </div>
+              {/* Confidence bar */}
+              <div style={{ marginBottom: 'var(--space-2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)' }}>Confidence</span>
+                  <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--clr-accent-light)' }}>
+                    {profile.cefr_confidence < 100 ? `${profile.cefr_confidence}%` : '✓ High'}
+                  </span>
+                </div>
+                <div style={{ height: 6, background: 'var(--clr-bg-elevated)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                  <div style={{ width: `${profile.cefr_confidence}%`, height: '100%', background: 'var(--clr-accent-gradient)', borderRadius: 'var(--radius-full)', transition: 'width 0.6s ease' }} />
+                </div>
+              </div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', lineHeight: 1.6 }}>
+                {profile.cefr_confidence < 30
+                  ? '⚡ More writing samples will improve accuracy.'
+                  : profile.cefr_confidence < 70
+                    ? '📈 Profile is stabilizing. Keep writing!'
+                    : '🎉 Profile is well-established.'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Section C: API Key for Selected Provider ── */}
       <div className="card" style={{ borderColor: 'rgba(99,102,241,0.3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
@@ -373,6 +444,69 @@ export default function Settings() {
             {savingKey ? <><span className="spinner" /> Securing key…</> : `🔐 Save ${currentProvider?.label ?? ''} Key`}
           </button>
         </form>
+      </div>
+
+      {/* ── Section D: Leaderboard Identity ── */}
+      <div className="card" style={{ marginTop: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
+          <div style={{ fontSize: 24 }}>🏆</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)' }}>Leaderboard Identity</div>
+            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-muted)' }}>Control how you appear in the Leaderboard.</div>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="display-name">Display Name</label>
+          <input
+            id="display-name" className="form-input"
+            value={publicProfile.display_name}
+            onChange={e => setPublicProfile(p => ({ ...p, display_name: e.target.value }))}
+            placeholder={session.user.email?.split('@')[0] || 'Your name'}
+            maxLength={32}
+          />
+          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', marginTop: 4 }}>Leave blank to use your email prefix. Max 32 characters.</div>
+        </div>
+
+        <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 0 }}>
+          <input
+            type="checkbox" id="show-on-leaderboard"
+            checked={publicProfile.show_on_leaderboard}
+            onChange={e => setPublicProfile(p => ({ ...p, show_on_leaderboard: e.target.checked }))}
+            style={{ width: 18, height: 18, cursor: 'pointer', flexShrink: 0 }}
+          />
+          <label htmlFor="show-on-leaderboard" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)', cursor: 'pointer' }}>
+            Show me on the Leaderboard
+          </label>
+        </div>
+
+        {publicMsg && <div className={`alert alert-${publicMsg.type}`} style={{ marginTop: 'var(--space-4)' }}>{publicMsg.text}</div>}
+
+        <button
+          id="save-public-profile-btn" className="btn btn-primary"
+          style={{ marginTop: 'var(--space-5)' }}
+          disabled={savingPublic}
+          onClick={async () => {
+            setSavingPublic(true)
+            setPublicMsg(null)
+            const { error } = await supabase
+              .from('user_public_profiles')
+              .upsert({
+                user_id: session.user.id,
+                display_name: publicProfile.display_name.trim() || null,
+                show_on_leaderboard: publicProfile.show_on_leaderboard,
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'user_id' })
+            setSavingPublic(false)
+            setPublicMsg(error
+              ? { type: 'danger', text: error.message }
+              : { type: 'success', text: '✅ Leaderboard identity saved!' }
+            )
+            setTimeout(() => setPublicMsg(null), 3000)
+          }}
+        >
+          {savingPublic ? <><span className="spinner" /> Saving…</> : '🏆 Save Leaderboard Identity'}
+        </button>
       </div>
     </div>
   )

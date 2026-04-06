@@ -4,10 +4,12 @@ import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../App.jsx'
 
 const navItems = [
-  { to: '/writing',    icon: '✍️',  label: 'Writing Space' },
-  { to: '/study-list', icon: '📚',  label: 'Study List' },
-  { to: '/review',     icon: '🔁',  label: 'Review' },
-  { to: '/settings',   icon: '⚙️',  label: 'Settings' },
+  { to: '/writing',      icon: '✍️',  label: 'Writing Space' },
+  { to: '/conversation', icon: '💬',  label: 'Conversation' },
+  { to: '/study-list',   icon: '📚',  label: 'Study List' },
+  { to: '/review',       icon: '🔁',  label: 'Review' },
+  { to: '/leaderboard',  icon: '🏆',  label: 'Leaderboard' },
+  { to: '/settings',     icon: '⚙️',  label: 'Settings' },
 ]
 
 // Load persisted theme on module init (before first render)
