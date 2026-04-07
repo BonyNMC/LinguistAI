@@ -118,8 +118,28 @@ function AnalysisPanel({ analysis, onAddWord, addedWords }) {
   if (!analysis) return null
   const cefrColors = { A1:'#6ee7b7', A2:'#34d399', B1:'#60a5fa', B2:'#818cf8', C1:'#c084fc', C2:'#f472b6' }
   const level = analysis.cefr_estimate
+  const credited = analysis.credited_words || []
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+
+      {/* Mastery credit banner */}
+      {credited.length > 0 && (
+        <div style={{
+          borderRadius: 'var(--radius-md)', padding: 'var(--space-4)',
+          background: 'rgba(34,197,94,0.08)', borderLeft: '3px solid var(--clr-success)',
+        }}>
+          <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--clr-success)', marginBottom: 'var(--space-2)' }}>
+            🏅 Mastery Credited!
+          </div>
+          <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-secondary)', margin: 0, lineHeight: 1.6 }}>
+            You used {credited.length > 1 ? 'these words' : 'this word'} from your Study List — each earned +10 mastery points:{' '}
+            {credited.map((w, i) => (
+              <strong key={i} style={{ color: 'var(--clr-success)' }}>{i > 0 ? ', ' : ''}"{w}"</strong>
+            ))}
+          </p>
+        </div>
+      )}
+
 
       {/* CEFR + Strengths */}
       <div className="card" style={{ borderColor: 'rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.04)' }}>
