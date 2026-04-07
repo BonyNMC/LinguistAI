@@ -24,10 +24,11 @@
 - Encrypts and saves to `user_profiles.api_key_encrypted`.
 - Critical: Disables gateway JWT check; validates internally.
 
-### 2. `analyze-writing`
+### 2. `analyze-writing` (v15 current)
 - Input: `{ writing_text }`
 - Hybrid Prompt + Multi-Provider support via `callLLM()`.
-- Returns: `{ analysed_text_marked_up, recall_report, native_spoken_rewrite, new_vocabulary_suggestions }`
+- After analysis: calls `creditVocabUsage()` to award +10 mastery for each study word found in the writing text.
+- Returns: `{ analysed_text_marked_up, recall_report, native_spoken_rewrite, new_vocabulary_suggestions, cefr_estimate, credited_words[] }`
 
 ### 3. `generate-challenge` (Review Step 1)
 - Fetches word + profile → `callLLM()` → scenario.
@@ -81,10 +82,11 @@
 - AI replies as a natural conversation partner. **NEVER corrects grammar mid-chat.** Appends messages to `conversation_sessions`.
 - Output: `{ reply: text, messages: updated_array }`
 
-### 6. `analyze-conversation` (NEW)
+### 6. `analyze-conversation` (v2 current)
 - Input: `{ session_id }`
 - Reads all messages, analyzes ONLY [Learner] turns.
-- Returns: `{ cefr_estimate, strengths, improvement_areas[], error_highlights[], vocabulary_suggestions[], title }`
+- After analysis: calls `creditVocabUsage()` to award +10 mastery for each study word found in the learner's messages.
+- Returns: `{ cefr_estimate, strengths, improvement_areas[], error_highlights[], vocabulary_suggestions[], title, credited_words[] }`
 - Also updates `user_profiles.cefr_detected` via Weighted Moving Average.
 
 ### Updated: `analyze-writing` (v14)

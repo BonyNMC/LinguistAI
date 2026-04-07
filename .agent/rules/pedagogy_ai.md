@@ -18,6 +18,21 @@
 - Prompts for `analyze-writing` must contain explicit, multi-stage rules for `<span class='mark-recall'>` to prevent hallucination.
 - Rules must handle: (1) exact matches only, (2) logic for correct vs. incorrect usage, and (3) a fallback for empty study lists.
 
+### Vocabulary Suggestion Type Diversity (MANDATORY)
+- Both `analyze-writing` and `analyze-conversation` prompts MUST enforce: **at least 1 `phrasal_verb`, 1 `linking_word`, and 1 `idiom`** per `vocabulary_suggestions` / `new_vocabulary_suggestions` array.
+- Prompts use few-shot examples with mixed types to prevent AI defaulting to all `vocab` single words.
+- Valid types: `vocab` | `phrasal_verb` | `idiom` | `linking_word`
+
+### `creditVocabUsage()` — Mastery Credit on Usage (Phase 16)
+- Both `analyze-writing` (v15+) and `analyze-conversation` (v2+) call this shared helper after AI analysis completes.
+- **Logic**: Fetch all user words with `status IN ('learning', 'reviewing', 'new')`. For each word, perform a **case-insensitive whole-word regex match** against the user's text. If matched:
+  - `mastery_level` += 10 (capped at 100)
+  - `next_review_due_at` = now + `floor(mastery/20)` days (min 1 day)
+  - `status` → `'reviewing'` if mastery ≥ 80; otherwise `'learning'`
+- Returns `credited_words[]` array included in API response.
+- **Frontend**: `AnalysisPanel` (ConversationMode) and `AnalysisResult` (WritingSpace) show a green **"🏅 Mastery Credited!"** banner listing credited words when `credited_words.length > 0`.
+- This is a **reward-only** mechanism — no mastery is deducted here. Full SM-2 evaluation still happens in Review via `evaluate-challenge`.
+
 ### Native Rewrite = Comprehensible Input
 - Instruct the AI to **naturally incorporate 1-2 of the session's focus words** into the rewrite where contextually appropriate.
 - Concept: **Comprehensible Input (Krashen i+1)** (Learner sees their own study words used correctly in context) and **Output Hypothesis (Swain)**.
