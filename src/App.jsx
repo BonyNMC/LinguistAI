@@ -52,7 +52,7 @@ function AdminGuard({ children }) {
     </div>
   )
   if (!profile || profile.role !== 'admin') {
-    return <Navigate to="/writing" replace />
+    return <Navigate to="/conversation" replace />
   }
   return children
 }
@@ -63,7 +63,7 @@ function AppLayout() {
       <NavBar />
       <main className="app-main">
         <Routes>
-          <Route path="/" element={<Navigate to="/writing" replace />} />
+          <Route path="/" element={<Navigate to="/conversation" replace />} />
           <Route path="/writing" element={<WritingSpace />} />
           <Route path="/conversation" element={<ConversationMode />} />
           <Route path="/study-list" element={<StudyList />} />
@@ -123,7 +123,7 @@ export default function App() {
     <AuthContext.Provider value={{ session, loading, profile, profileLoading, refetchProfile: () => session?.user && fetchProfile(session.user.id) }}>
       <BrowserRouter>
         <Routes>
-          <Route path="/auth" element={session ? <Navigate to="/writing" replace /> : <AuthForm />} />
+          <Route path="/auth" element={session ? <Navigate to="/conversation" replace /> : <AuthForm />} />
 
           {/* Standalone waiting room — authenticated but not active */}
           <Route path="/waiting-room" element={

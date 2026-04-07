@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../App.jsx'
 
 const navItems = [
-  { to: '/writing',      icon: '✍️',  label: 'Writing Space' },
   { to: '/conversation', icon: '💬',  label: 'Conversation' },
+  { to: '/writing',      icon: '✍️',  label: 'Writing Space' },
   { to: '/study-list',   icon: '📚',  label: 'Study List' },
   { to: '/review',       icon: '🔁',  label: 'Review' },
   { to: '/leaderboard',  icon: '🏆',  label: 'Leaderboard' },
@@ -77,7 +77,7 @@ export default function NavBar() {
     <>
       {/* Mobile top bar */}
       <header className="mobile-topbar">
-        <a className="sidebar-brand" href="/writing" style={{ textDecoration: 'none' }}>
+        <a className="sidebar-brand" href="/conversation" style={{ textDecoration: 'none' }}>
           <div className="sidebar-brand-icon">🧠</div>
           <span className="sidebar-brand-text">LinguistAI</span>
         </a>
@@ -98,7 +98,7 @@ export default function NavBar() {
       {/* Sidebar */}
       <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
         {/* Brand */}
-        <a className="sidebar-brand" href="/writing">
+        <a className="sidebar-brand" href="/conversation">
           <div className="sidebar-brand-icon">🧠</div>
           <span className="sidebar-brand-text">LinguistAI</span>
         </a>

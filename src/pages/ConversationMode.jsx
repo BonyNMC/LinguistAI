@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../App.jsx'
 import { SpeakButton } from '../components/SpeakButton.jsx'
+import DailyVocabMissions from '../components/DailyVocabMissions.jsx'
 
 // ── sessionStorage keys ──────────────────────────────────────────
 const SS_SESSION_ID = 'linguist_conv_session_id'
@@ -338,6 +339,7 @@ export default function ConversationMode() {
       {/* ── Chat Phase ── */}
       {phase === 'chat' && (
         <>
+          <DailyVocabMissions />
           {messages.length === 0 && (
             <div className="card" style={{ textAlign: 'center', padding: 'var(--space-12)', marginBottom: 'var(--space-4)' }}>
               <div style={{ fontSize: 56, marginBottom: 'var(--space-4)' }}>💬</div>

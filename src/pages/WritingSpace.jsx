@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../App.jsx'
 import { SpeakButton } from '../components/SpeakButton.jsx'
 import ExportPanel from '../components/ExportPanel.jsx'
+import DailyVocabMissions from '../components/DailyVocabMissions.jsx'
 
 // ── sessionStorage keys ──────────────────────────────────────────
 const SS_TEXT   = 'linguist_writing_text'
@@ -216,6 +217,8 @@ export default function WritingSpace() {
       </div>
 
       {error && <div className="alert alert-danger">⚠️ {error}</div>}
+
+      <DailyVocabMissions />
 
       <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
         <textarea
