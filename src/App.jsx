@@ -12,6 +12,7 @@ import AdminDashboard from './pages/AdminDashboard.jsx'
 import ConversationMode from './pages/ConversationMode.jsx'
 import Leaderboard from './pages/Leaderboard.jsx'
 import Stats from './pages/Stats.jsx'
+import History from './pages/History.jsx'
 
 export const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -71,6 +72,7 @@ function AppLayout() {
           <Route path="/review" element={<Review />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/stats" element={<Stats />} />
+          <Route path="/history" element={<History />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

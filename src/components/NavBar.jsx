@@ -9,6 +9,7 @@ const navItems = [
   { to: '/study-list',   icon: '📚',  label: 'Study List' },
   { to: '/review',       icon: '🔁',  label: 'Review' },
   { to: '/leaderboard',  icon: '🏆',  label: 'Leaderboard' },
+  { to: '/history',      icon: '🕘',  label: 'History' },
   { to: '/stats',        icon: '📊',  label: 'My Stats' },
   { to: '/settings',     icon: '⚙️',  label: 'Settings' },
 ]

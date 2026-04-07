@@ -58,3 +58,19 @@
 - Displays: AI topic, mission briefing, target word chips (color-coded by mastery level: red=New → blue=Mastered). Hover chip = definition tooltip.
 - No-words fallback: generic mission shown when `user_vocab_progress` is empty, encouraging user to add words.
 - Has Refresh (↺) button (clears cache + re-fetches) and collapse toggle.
+
+## 🕘 Phase 17 — History Page
+- `src/pages/History.jsx` — Route `/history`, NavBar icon 🕘.
+- Data: merged `user_writings` (always analyzed — inserted only after `analyze-writing`) + `conversation_sessions` (filter `analysis IS NOT NULL`).
+- Sorted by `created_at` DESC. Grouped by calendar day with a date label header.
+- **Search**: client-side `ilike` across `title`, `writing_raw`, conversation `messages[].content`. Resets to page 1 on query change.
+- **Pagination**: 20 items per page, Prev/Next buttons.
+- **SessionCard**: expandable (click header). Writing cards show raw text + recall report + native rewrite. Conversation cards show message bubbles (user right, AI left) + strengths summary.
+- Badge types: `✍️ Writing` (blue tint) / `💬 Conversation` (indigo tint).
+
+## 📊 Phase 17 — Stats Page
+- `src/pages/Stats.jsx` — Route `/stats`, NavBar icon 📊.
+- Data fetched: `user_profiles` (streak), `user_vocab_progress` (mastery stats), `user_writings`, `conversation_sessions`, `user_vocab_progress.last_reviewed_at` (for chart).
+- **ActivityHeatmap**: CSS grid of 13×13px day cells spanning ~181 days. Color levels: 0=dim, 1=35% accent, 2=60% accent, 3+=90% accent. Month labels auto-generated. Today cell has accent border.
+- **LineChart**: Pure inline SVG, `viewBox="0 0 600 140"`. Uses `<polyline>` for line, `<path>` with `linearGradient` for fill, `<text>` for axis labels. X = last 30 days, Y = activity count.
+- Zero external chart/calendar libraries.
