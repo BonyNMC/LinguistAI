@@ -96,3 +96,13 @@
 - New optional params: `story_mode: bool`, `story_context: text|null`
 - When `story_mode=true`: generates/continues a linked narrative across challenges.
 - Returns `story_context` field for frontend to persist per session.
+
+## ⚡ Edge Functions (Phase 16 additions)
+
+### 7. `generate-daily-mission` (NEW)
+- Input: none (reads user from JWT)
+- Queries `user_vocab_progress` joined with `vocab_master`: top 5 rows ordered by `mastery_level ASC`, `next_review_due_at ASC` — same SM-2 priority as Active Recall.
+- Only considers words with `status IN ('learning', 'reviewing')`.
+- Calls LLM to generate a `{ topic, prompt }` — a mission briefing that naturally frames the context so the user practices the weak words.
+- Fallback (no words): returns a generic intro mission with `no_words: true`.
+- Output: `{ mission_words[], topic, prompt, no_words }`.

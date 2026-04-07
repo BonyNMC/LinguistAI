@@ -31,6 +31,11 @@
 - `/leaderboard` → `Leaderboard.jsx` — 3-tab ranking board.
 - Both are protected by `AuthGuard` + `AccessGuard` (active account required).
 
+## 🗺️ Phase 16 — Default Route Change
+- **Root `/` now navigates to `/conversation`** (was `/writing`). Change reflected in `App.jsx` and the brand logo `href` in `NavBar.jsx`.
+- **NavBar order**: Conversation is first, Writing Space is second.
+- After login (`/auth`), users are also redirected to `/conversation`.
+
 ## 💾 Phase 15 — sessionStorage Extensions
 - `ConversationMode.jsx` uses 4 sessionStorage keys: `linguist_conv_session_id`, `linguist_conv_messages`, `linguist_conv_analysis`, `linguist_conv_phase`.
 - Same pattern as WritingSpace: persist across React Router unmounts, cleared on "New Conversation" button.
@@ -46,3 +51,10 @@
 - CEFR badge: colored circle per level (A1=mint, A2=green, B1=blue, B2=indigo, C1=purple, C2=pink).
 - Privacy: opt-out toggle + custom display name in Settings → Leaderboard Identity card.
 - The `leaderboard` DB view handles privacy filtering server-side (`show_on_leaderboard = true` only).
+
+## 🎯 Phase 16 — DailyVocabMissions Component
+- `src/components/DailyVocabMissions.jsx` — Shared by `ConversationMode.jsx` (top of chat phase) and `WritingSpace.jsx` (above textarea).
+- Invokes `generate-daily-mission` Edge Function on mount. Result cached under `sessionStorage` key `linguist_daily_mission` for the entire browser session — switching tabs does NOT trigger a second API call.
+- Displays: AI topic, mission briefing, target word chips (color-coded by mastery level: red=New → blue=Mastered). Hover chip = definition tooltip.
+- No-words fallback: generic mission shown when `user_vocab_progress` is empty, encouraging user to add words.
+- Has Refresh (↺) button (clears cache + re-fetches) and collapse toggle.
