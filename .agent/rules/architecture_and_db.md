@@ -71,10 +71,11 @@
 - RLS: user can write own row; all authenticated users can SELECT
 
 ### `get_leaderboard` (FUNCTION/RPC)
-- Aggregates `user_vocab_progress`, `conversation_sessions`, `user_writings` per user
-- Replaced the old view to prevent Supabase Security Definer View warning.
+- Signature: `(p_start_date timestamptz, p_end_date timestamptz)` returning TABLE.
+- Aggregates `user_vocab_progress`, `conversation_sessions`, `user_writings` filtered by date ranges.
+- Calculates an `overall_score` = `(mastered * 100) + (activity * 20) + (streak * 10) + mastery points`.
 - Only includes `account_status = 'active'` AND `show_on_leaderboard = true`
-- Returns TABLE: `user_id`, `username`, `cefr_detected`, `target_level`, `total_mastery_points`, `words_mastered`, `total_activity_count`, `current_streak`, `best_streak`
+- Returns TABLE: `user_id`, `username`, `cefr_detected`, `target_level`, `total_mastery_points`, `words_mastered`, `total_activity_count`, `current_streak`, `best_streak`, `overall_score`
 
 ## ⚡ Edge Functions (Phase 15 additions)
 
