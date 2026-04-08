@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../App.jsx'
 import { SpeakButton } from '../components/SpeakButton.jsx'
@@ -87,6 +88,7 @@ function AddWordModal({ onClose, onSave }) {
 
 export default function StudyList() {
   const { session } = useAuth()
+  const location = useLocation()
   const [words, setWords] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -97,7 +99,8 @@ export default function StudyList() {
 
   const domains = [...new Set(words.map(w => w.vocab_master?.domain).filter(Boolean))]
 
-  useEffect(() => { fetchWords() }, [session])
+  // Refetch whenever the user navigates to this page (e.g., after Mastery Credit from Writing/Conversation)
+  useEffect(() => { fetchWords() }, [session, location.pathname])
 
   async function fetchWords() {
     setLoading(true)
@@ -188,9 +191,12 @@ export default function StudyList() {
       <div className="page-header">
         <div className="page-header-text">
           <h1 className="page-title">Study List</h1>
-          <p className="page-subtitle">{words.length} words tracked · {words.filter(w => w.status === 'mastered').length} mastered</p>
+          <p className="page-subtitle">
+            {words.length} words tracked · {words.filter(w => w.status === 'reviewing').length} reviewing · {words.filter(w => w.status === 'mastered').length} mastered
+          </p>
         </div>
         <div className="flex gap-3">
+          <button className="btn btn-ghost btn-sm" onClick={fetchWords} id="refresh-studylist-btn">🔄 Refresh</button>
           <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} id="export-csv-btn">⬇ Export CSV</button>
           <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current.click()} id="import-csv-btn">⬆ Import CSV</button>
           <input ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleImportCSV} />

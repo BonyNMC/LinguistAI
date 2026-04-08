@@ -138,16 +138,39 @@ export default function Leaderboard() {
       {/* Formula Explanation */}
       {tab === 'overall_score' && (
         <div style={{ 
-          background: 'rgba(99,102,241,0.08)', border: '1px solid var(--clr-border)', 
-          borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', 
-          marginBottom: 'var(--space-5)', fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-primary)',
-          display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+          background: 'rgba(99,102,241,0.06)', border: '1px solid var(--clr-border)', 
+          borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', 
+          marginBottom: 'var(--space-5)',
         }}>
-          💡 <strong style={{ color: 'var(--clr-accent-light)' }}>Score Formula:</strong>
-          <span style={{ padding: '2px 6px', background: 'var(--clr-bg-raised)', borderRadius: 4, fontSize: 11 }}>(Mastered × 100)</span> + 
-          <span style={{ padding: '2px 6px', background: 'var(--clr-bg-raised)', borderRadius: 4, fontSize: 11 }}>(Activity × 20)</span> + 
-          <span style={{ padding: '2px 6px', background: 'var(--clr-bg-raised)', borderRadius: 4, fontSize: 11 }}>(Streak × 10)</span> + 
-          <span style={{ padding: '2px 6px', background: 'var(--clr-bg-raised)', borderRadius: 4, fontSize: 11 }}>Mastery Points</span>
+          {/* Formula row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-sm)' }}>
+            💡 <strong style={{ color: 'var(--clr-accent-light)' }}>Overall Score =</strong>
+            <span style={{ padding: '2px 8px', background: 'var(--clr-bg-raised)', borderRadius: 4, fontSize: 11, border: '1px solid var(--clr-border)' }}>🌟 Mastered × 100</span>
+            <span style={{ color: 'var(--clr-text-muted)' }}>+</span>
+            <span style={{ padding: '2px 8px', background: 'var(--clr-bg-raised)', borderRadius: 4, fontSize: 11, border: '1px solid var(--clr-border)' }}>✍️ Activity × 20</span>
+            <span style={{ color: 'var(--clr-text-muted)' }}>+</span>
+            <span style={{ padding: '2px 8px', background: 'var(--clr-bg-raised)', borderRadius: 4, fontSize: 11, border: '1px solid var(--clr-border)' }}>🔥 Streak × 10</span>
+            <span style={{ color: 'var(--clr-text-muted)' }}>+</span>
+            <span style={{ padding: '2px 8px', background: 'var(--clr-bg-raised)', borderRadius: 4, fontSize: 11, border: '1px solid var(--clr-border)' }}>⚡ Mastery Points</span>
+          </div>
+          {/* How to earn breakdown */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-2)' }}>
+            {[
+              { icon: '✍️', title: 'Writing / Conversation', points: '+20 per analyzed session', detail: 'Use vocab from your Study List to earn +10 mastery pts per word', color: '#60a5fa' },
+              { icon: '🔄', title: 'Review (SRS)', points: '+8 mastery pts per pass', detail: 'Words reach mastery 80 → Reviewing, 100 → fully Mastered (+100 Overall)', color: '#a78bfa' },
+              { icon: '🌟', title: 'Words Mastered', points: '+100 per word at 100%', detail: 'Reach mastery 100 through repeated review + real usage in writing', color: '#34d399' },
+              { icon: '🔥', title: 'Daily Streak', points: '+10 per streak day', detail: 'Analyze writing or conversation at least once per day to maintain streak', color: '#fb923c' },
+            ].map((item, i) => (
+              <div key={i} style={{ background: 'var(--clr-bg-raised)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', borderLeft: `3px solid ${item.color}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 14 }}>{item.icon}</span>
+                  <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--clr-text-primary)' }}>{item.title}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: item.color, background: `${item.color}18`, padding: '1px 6px', borderRadius: 99 }}>{item.points}</span>
+                </div>
+                <p style={{ fontSize: 10, color: 'var(--clr-text-muted)', margin: 0, lineHeight: 1.5 }}>{item.detail}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
