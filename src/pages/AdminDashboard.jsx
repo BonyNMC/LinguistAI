@@ -5,16 +5,20 @@ import NavBar from '../components/NavBar.jsx'
 const STATUS_OPTIONS = ['pending', 'active', 'suspended']
 
 const STATUS_BADGE = {
-  pending: { label: 'Pending', cls: 'badge-pending' },
-  active: { label: 'Active', cls: 'badge-active' },
+  pending:   { label: 'Pending',   cls: 'badge-pending' },
+  active:    { label: 'Active',    cls: 'badge-active' },
   suspended: { label: 'Suspended', cls: 'badge-suspended' },
 }
 
 export default function AdminDashboard() {
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [updating, setUpdating] = useState({}) // { [userId]: true }
+  const [users, setUsers]             = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState(null)
+  const [updating, setUpdating]       = useState({})
+  // Invite
+  const [inviteEmails, setInviteEmails] = useState('')
+  const [inviting, setInviting]         = useState(false)
+  const [inviteResults, setInviteResults] = useState([]) // [{ email, ok, msg }]
 
   async function loadUsers() {
     setLoading(true)
@@ -62,10 +66,52 @@ export default function AdminDashboard() {
     setUpdating(prev => ({ ...prev, [userId]: false }))
   }
 
+  // ── Bulk Invite ──────────────────────────────────────────
+  async function handleInviteUsers(e) {
+    e.preventDefault()
+    const raw = inviteEmails.trim()
+    if (!raw) return
+
+    // Parse emails: split by comma, semicolon, newline, or space
+    const emailList = raw
+      .split(/[,;\n\s]+/)
+      .map(s => s.trim().toLowerCase())
+      .filter(s => s && s.includes('@'))
+
+    if (emailList.length === 0) {
+      setInviteResults([{ email: raw, ok: false, msg: 'No valid emails found' }])
+      return
+    }
+
+    setInviting(true)
+    setInviteResults([])
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const results = []
+
+    for (const email of emailList) {
+      try {
+        const { data, error: fnErr } = await supabase.functions.invoke('admin-invite-user', {
+          body: { email },
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        })
+        if (fnErr) throw fnErr
+        if (data?.error) throw new Error(data.error)
+        results.push({ email, ok: true, msg: 'Invited & activated ✓' })
+      } catch (err) {
+        results.push({ email, ok: false, msg: err.message })
+      }
+    }
+
+    setInviteResults(results)
+    setInviteEmails('')
+    setInviting(false)
+    loadUsers()
+  }
+
   useEffect(() => {
     loadUsers()
 
-    // Realtime: reload when a new user is inserted
     const channel = supabase
       .channel('admin-user-profiles')
       .on(
@@ -87,8 +133,8 @@ export default function AdminDashboard() {
     return id ? id.slice(0, 8) + '…' : '—'
   }
 
-  const totalUsers = users.length
-  const activeUsers = users.filter(u => u.account_status === 'active').length
+  const totalUsers   = users.length
+  const activeUsers  = users.filter(u => u.account_status === 'active').length
   const pendingUsers = users.filter(u => u.account_status === 'pending').length
 
   return (
@@ -132,47 +178,55 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* ── Invite User ─────────────────────────────────────── */}
+        {/* ── Invite Users ─────────────────────────────────────── */}
         <div style={{
           background: 'rgba(99,102,241,0.06)', border: '1px solid var(--clr-border)',
           borderRadius: 'var(--radius-md)', padding: 'var(--space-4)',
           marginBottom: 'var(--space-5)',
         }}>
           <div style={{ marginBottom: 'var(--space-3)' }}>
-            <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-primary)' }}>✉️ Invite User to LinguistAI</span>
+            <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-primary)' }}>✉️ Invite Users to LinguistAI</span>
             <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', marginLeft: 8 }}>
-              Send an invitation email — they set their own password and join as a student (Pending activation).
+              Enter one or multiple emails (comma, newline, or space separated). Invited users will be <strong style={{ color: '#34d399' }}>Active</strong> immediately.
             </span>
           </div>
-          <form onSubmit={handleInviteUser} style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            <input
+          <form onSubmit={handleInviteUsers} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <textarea
               id="invite-email-input"
-              type="email"
               className="form-input"
-              placeholder="student@example.com"
-              value={inviteEmail}
-              onChange={e => { setInviteEmail(e.target.value); setInviteMsg(null) }}
-              style={{ flex: 1, minWidth: 240, height: 40 }}
-              required
+              placeholder={"student1@example.com, student2@example.com\nor paste a list of emails..."}
+              value={inviteEmails}
+              onChange={e => { setInviteEmails(e.target.value); setInviteResults([]) }}
+              style={{ flex: 1, minWidth: 280, height: 60, resize: 'vertical', fontFamily: 'inherit', fontSize: 'var(--font-size-sm)' }}
               disabled={inviting}
             />
             <button
               id="invite-send-btn"
               type="submit"
               className="btn btn-primary"
-              style={{ height: 40, whiteSpace: 'nowrap' }}
-              disabled={inviting || !inviteEmail.trim()}
+              style={{ height: 40, whiteSpace: 'nowrap', marginTop: 2 }}
+              disabled={inviting || !inviteEmails.trim()}
             >
-              {inviting ? <span className="spinner" style={{ width: 16, height: 16 }} /> : '📨 Send Invite'}
+              {inviting ? <span className="spinner" style={{ width: 16, height: 16 }} /> : '📨 Send Invites'}
             </button>
           </form>
-          {inviteMsg && (
-            <div style={{
-              marginTop: 'var(--space-2)', fontSize: 'var(--font-size-xs)', padding: '6px 10px',
-              borderRadius: 'var(--radius-sm)',
-              background: inviteMsg.type === 'success' ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)',
-              color: inviteMsg.type === 'success' ? '#34d399' : '#f87171',
-            }}>{inviteMsg.text}</div>
+          {inviteResults.length > 0 && (
+            <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {inviteResults.map((r, i) => (
+                <div key={i} style={{
+                  fontSize: 'var(--font-size-xs)', padding: '4px 10px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: r.ok ? 'rgba(52,211,153,0.08)' : 'rgba(239,68,68,0.08)',
+                  color: r.ok ? '#34d399' : '#f87171',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <span>{r.ok ? '✅' : '⚠️'}</span>
+                  <strong>{r.email}</strong>
+                  <span style={{ color: 'var(--clr-text-muted)' }}>—</span>
+                  <span>{r.msg}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
