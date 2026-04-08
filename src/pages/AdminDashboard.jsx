@@ -132,6 +132,50 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* ── Invite User ─────────────────────────────────────── */}
+        <div style={{
+          background: 'rgba(99,102,241,0.06)', border: '1px solid var(--clr-border)',
+          borderRadius: 'var(--radius-md)', padding: 'var(--space-4)',
+          marginBottom: 'var(--space-5)',
+        }}>
+          <div style={{ marginBottom: 'var(--space-3)' }}>
+            <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-primary)' }}>✉️ Invite User to LinguistAI</span>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', marginLeft: 8 }}>
+              Send an invitation email — they set their own password and join as a student (Pending activation).
+            </span>
+          </div>
+          <form onSubmit={handleInviteUser} style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            <input
+              id="invite-email-input"
+              type="email"
+              className="form-input"
+              placeholder="student@example.com"
+              value={inviteEmail}
+              onChange={e => { setInviteEmail(e.target.value); setInviteMsg(null) }}
+              style={{ flex: 1, minWidth: 240, height: 40 }}
+              required
+              disabled={inviting}
+            />
+            <button
+              id="invite-send-btn"
+              type="submit"
+              className="btn btn-primary"
+              style={{ height: 40, whiteSpace: 'nowrap' }}
+              disabled={inviting || !inviteEmail.trim()}
+            >
+              {inviting ? <span className="spinner" style={{ width: 16, height: 16 }} /> : '📨 Send Invite'}
+            </button>
+          </form>
+          {inviteMsg && (
+            <div style={{
+              marginTop: 'var(--space-2)', fontSize: 'var(--font-size-xs)', padding: '6px 10px',
+              borderRadius: 'var(--radius-sm)',
+              background: inviteMsg.type === 'success' ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)',
+              color: inviteMsg.type === 'success' ? '#34d399' : '#f87171',
+            }}>{inviteMsg.text}</div>
+          )}
+        </div>
+
         {error && (
           <div className="admin-error">
             <strong>Error:</strong> {error}
