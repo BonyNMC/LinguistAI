@@ -11,7 +11,7 @@ import { SpeakButton } from '../components/SpeakButton.jsx'
 // - 'linking_word' : discourse connectors & cohesive devices (e.g. 'moreover', 'in contrast')
 //                    NOT 'linking_verb' — that is a grammar term for BE/seem/appear, not a learnable lexical chunk
 const WORD_TYPES = ['vocab', 'phrasal_verb', 'idiom', 'linking_word']
-const STATUS_COLORS = { learning: 'badge-info', mastered: 'badge-success', suspended: 'badge-muted' }
+const STATUS_COLORS = { learning: 'badge-info', reviewing: 'badge-accent', mastered: 'badge-success', suspended: 'badge-muted' }
 
 function MasteryBar({ value }) {
   const level = value >= 70 ? 'high' : value >= 40 ? 'mid' : 'low'

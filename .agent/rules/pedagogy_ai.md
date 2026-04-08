@@ -22,6 +22,7 @@
 - Both `analyze-writing` and `analyze-conversation` prompts MUST enforce: **at least 1 `phrasal_verb`, 1 `linking_word`, and 1 `idiom`** per `vocabulary_suggestions` / `new_vocabulary_suggestions` array.
 - Prompts use few-shot examples with mixed types to prevent AI defaulting to all `vocab` single words.
 - Valid types: `vocab` | `phrasal_verb` | `idiom` | `linking_word`
+- ⚠️ `linking_word` (discourse connectors: *however, moreover, in contrast*) ≠ `linking_verb` (grammar term for BE/seem/appear). The former is correct.
 
 ### `creditVocabUsage()` — Mastery Credit on Usage (Phase 16)
 - Both `analyze-writing` (v15+) and `analyze-conversation` (v2+) call this shared helper after AI analysis completes.
@@ -32,6 +33,31 @@
 - Returns `credited_words[]` array included in API response.
 - **Frontend**: `AnalysisPanel` (ConversationMode) and `AnalysisResult` (WritingSpace) show a green **"🏅 Mastery Credited!"** banner listing credited words when `credited_words.length > 0`.
 - This is a **reward-only** mechanism — no mastery is deducted here. Full SM-2 evaluation still happens in Review via `evaluate-challenge`.
+
+### SRS Status Lifecycle (4-Stage Pipeline)
+The vocabulary mastery system follows a strict 4-stage lifecycle:
+```
+new → learning (0–79) → reviewing (80–99) → mastered (100) → [maintenance loop]
+```
+- **`learning`** (0–79): Actively memorizing. Reviewed frequently via SM-2.
+- **`reviewing`** (80–99): High retention, consolidation phase. Longer intervals. Can be reached via SM-2 or `creditVocabUsage()`.
+- **`mastered`** (100): Fully acquired through repeated successful retrieval. Earned via SM-2 `calcNextReview`.
+- **`suspended`**: User-paused word. Excluded from all queues.
+
+**Status Transitions:**
+- Pass SRS review at mastery 80-99 → stays `reviewing`, interval increases
+- Pass SRS review at mastery ≥ 100 → `mastered`
+- Fail SRS review at mastery < 10 → `learning` (lapsed)
+- `creditVocabUsage()` in writing/conversation: mastery ≥ 80 → `reviewing`; otherwise `learning`
+
+**Maintenance Review (Phase 19 — Ebbinghaus + SM-2):**
+- Even `mastered` words are NOT immune to forgetting. No AUTOMATIC score decay (demotivating for busy learners).
+- `mastered` words re-enter the Review queue every **90 days** (`MAINTENANCE_INTERVAL_DAYS = 90`).
+- Max **3 maintenance words per session** (appended after regular queue) to avoid overwhelming learners.
+- **Pass maintenance** → stay `mastered`, schedule next check in 90 days.
+- **Fail maintenance** → mastery drops to **70**, status → `reviewing`, next review in 3 days.
+- UI: A yellow **"🔧 Maintenance Check"** banner appears on the word card for `mastered` words.
+- Logic: `calcMaintenanceResult(passed: bool)` — separate from `calcNextReview()` (no SM-2 EF progression).
 
 ### Native Rewrite = Comprehensible Input
 - Instruct the AI to **naturally incorporate 1-2 of the session's focus words** into the rewrite where contextually appropriate.

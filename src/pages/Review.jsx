@@ -3,15 +3,22 @@ import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../App.jsx'
 import { SpeakButton } from '../components/SpeakButton.jsx'
 
-// SM-2 Algorithm
-// ── SRS Status Lifecycle ────────────────────────────────────────
-// new → learning (0–79) → reviewing (80–99) → mastered (100)
-// 'reviewing' = word is known well, but needs continued spaced exposure
-//               before it can be considered truly acquired (mastered)
-// This follows the i+1 acquisition hypothesis: consolidation requires
-// multiple spaced successful retrievals, not just a single correct use.
+// ── SRS Status Lifecycle ─────────────────────────────────────────────────────
+// new → learning (0–79) → reviewing (80–99) → mastered (100) → [maintenance]
+//
+// Maintenance Review (Ebbinghaus + SM-2 theory):
+//   Even 'mastered' words are NOT immune to forgetting — they benefit from
+//   ultra-long-interval review (every 90 days) to confirm true acquisition.
+//   No AUTOMATIC score decay (demotivating, unfair for busy learners).
+//   Decay only happens when the learner DEMONSTRATES forgetting by failing.
+//
+//   - Pass maintenance → stay mastered, schedule next maintenance in 90 days
+//   - Fail maintenance → mastery drops to 70, status → 'reviewing'
+//     (evidence-based: they forgot, must consolidate again)
+
+const MAINTENANCE_INTERVAL_DAYS = 90
+
 function calcNextReview(mastery, quality, ef, reps) {
-  // quality: 0-5 (0=fail, 5=perfect)
   let newEf = Math.max(1.3, ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)))
   let newReps = quality >= 3 ? reps + 1 : 0
   let interval = 1
@@ -23,17 +30,25 @@ function calcNextReview(mastery, quality, ef, reps) {
   nextDate.setDate(nextDate.getDate() + interval)
   const newMastery = Math.min(100, Math.max(0, mastery + (quality >= 3 ? 8 : -15)))
 
-  // Status transitions:
-  // - 'mastered' only at 100 (fully acquired via sustained SRS + real usage)
-  // - 'reviewing' at 80–99 (high retention, longer intervals, still consolidating)
-  // - 'learning' below 10 (lapsed — needs re-learning from scratch)
-  // - undefined = stay at current status
   let newStatus
   if (newMastery >= 100) newStatus = 'mastered'
   else if (newMastery >= 80) newStatus = 'reviewing'
   else if (newMastery < 10) newStatus = 'learning'
 
   return { ef: newEf, reps: newReps, next_review_due_at: nextDate.toISOString(), mastery: newMastery, status: newStatus }
+}
+
+function calcMaintenanceResult(passed) {
+  const nextDate = new Date()
+  if (passed) {
+    // Confirmed acquired → schedule next maintenance in 90 days
+    nextDate.setDate(nextDate.getDate() + MAINTENANCE_INTERVAL_DAYS)
+    return { mastery: 100, status: 'mastered', next_review_due_at: nextDate.toISOString() }
+  } else {
+    // Forgot → drop mastery, return to consolidation phase
+    nextDate.setDate(nextDate.getDate() + 3)
+    return { mastery: 70, status: 'reviewing', next_review_due_at: nextDate.toISOString() }
+  }
 }
 
 export default function Review() {
@@ -58,18 +73,32 @@ export default function Review() {
 
   async function fetchDue() {
     setLoading(true)
-    const { data } = await supabase
+    const now = new Date().toISOString()
+
+    // 1. Regular SRS queue: learning + reviewing words due now
+    const { data: regularWords } = await supabase
       .from('user_vocab_progress')
-      .select('id, mastery_level, status, ef_factor, repetitions, vocab_master(id, word_phrase, type, domain, definition)')
+      .select('id, mastery_level, status, ef_factor, repetitions, next_review_due_at, vocab_master(id, word_phrase, type, domain, definition)')
       .eq('user_id', session.user.id)
-      // Include both 'learning' and 'reviewing' — words at 80–99 mastery
-      // still need spaced repetition to reach full acquisition (mastery=100).
-      // Excluding 'reviewing' would strand half-learned words permanently.
       .in('status', ['learning', 'reviewing'])
-      .lte('next_review_due_at', new Date().toISOString())
+      .lte('next_review_due_at', now)
       .order('next_review_due_at', { ascending: true })
       .limit(20)
-    setDueWords(data || [])
+
+    // 2. Maintenance queue: mastered words due for periodic check (every 90 days)
+    //    Max 3 per session to avoid overwhelming the learner.
+    const { data: maintenanceWords } = await supabase
+      .from('user_vocab_progress')
+      .select('id, mastery_level, status, ef_factor, repetitions, next_review_due_at, vocab_master(id, word_phrase, type, domain, definition)')
+      .eq('user_id', session.user.id)
+      .eq('status', 'mastered')
+      .lte('next_review_due_at', now)
+      .order('next_review_due_at', { ascending: true })
+      .limit(3)
+
+    // Maintenance words go at the END of the queue (regular review first)
+    const allDue = [...(regularWords || []), ...(maintenanceWords || [])]
+    setDueWords(allDue)
     setLoading(false)
   }
 
@@ -122,20 +151,29 @@ export default function Review() {
       setEvalResult(data)
       setPhase('result')
 
-      // Update mastery + SM-2
-      const quality = data.passed ? Math.min(5, Math.round(3 + data.score / 33)) : 1
-      const { ef, reps, next_review_due_at, mastery, status } = calcNextReview(
-        current.mastery_level, quality, current.ef_factor, current.repetitions
-      )
-      const update = {
-        mastery_level: mastery,
-        ef_factor: ef,
-        repetitions: reps,
-        next_review_due_at,
-        last_reviewed_at: new Date().toISOString(),
-        times_used_in_writing: (current.times_used_in_writing || 0) + 1,
+      let update = { last_reviewed_at: new Date().toISOString() }
+
+      if (current.status === 'mastered') {
+        // Maintenance review: no SM-2 progression, just pass/fail check
+        const { mastery, status, next_review_due_at } = calcMaintenanceResult(data.passed)
+        update = { ...update, mastery_level: mastery, status, next_review_due_at }
+      } else {
+        // Normal SRS review: full SM-2 progression
+        const quality = data.passed ? Math.min(5, Math.round(3 + data.score / 33)) : 1
+        const { ef, reps, next_review_due_at, mastery, status } = calcNextReview(
+          current.mastery_level, quality, current.ef_factor, current.repetitions
+        )
+        update = {
+          ...update,
+          mastery_level: mastery,
+          ef_factor: ef,
+          repetitions: reps,
+          next_review_due_at,
+          times_used_in_writing: (current.times_used_in_writing || 0) + 1,
+        }
+        if (status) update.status = status
       }
-      if (status) update.status = status
+
       await supabase.from('user_vocab_progress').update(update).eq('id', current.id)
     } catch (e) {
       setError(e.message)
@@ -253,7 +291,22 @@ export default function Review() {
 
           {current && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              {/* Word card */}
+              {/* Maintenance banner */}
+              {current.status === 'mastered' && (
+                <div style={{
+                  borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)',
+                  background: 'rgba(251,191,36,0.08)', borderLeft: '3px solid #f59e0b',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <span style={{ fontSize: 18 }}>🔧</span>
+                  <div>
+                    <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: '#f59e0b' }}>Maintenance Check</div>
+                    <div style={{ fontSize: 10, color: 'var(--clr-text-muted)', marginTop: 1 }}>
+                      This word is fully mastered. This is your periodic check — pass to confirm it’s truly acquired. Fail → back to Reviewing.
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
@@ -285,11 +338,13 @@ export default function Review() {
                     </div>
                   )}
                   <p style={{ color: 'var(--clr-text-secondary)', marginBottom: 'var(--space-6)' }}>
-                    {storyMode
-                      ? storyContext
-                        ? <>The story continues… use <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong> in the next scene.</>
-                        : <>Start an epic story using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.</>
-                      : <>Your AI coach will create a real-world scenario for you to write a sentence using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.</>
+                    {current.status === 'mastered'
+                      ? <>This is a <strong style={{ color: '#f59e0b' }}>Maintenance Review</strong>. Prove you still remember <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong> — use it correctly in context.</>
+                      : storyMode
+                        ? storyContext
+                          ? <>The story continues… use <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong> in the next scene.</>
+                          : <>Start an epic story using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.</>
+                        : <>Your AI coach will create a real-world scenario for you to write a sentence using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.</>
                     }
                   </p>
                   <button className="btn btn-primary btn-lg" onClick={handleGenerateChallenge} id="start-challenge-btn">
