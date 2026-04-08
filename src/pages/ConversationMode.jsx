@@ -9,6 +9,7 @@ const SS_SESSION_ID = 'linguist_conv_session_id'
 const SS_MESSAGES   = 'linguist_conv_messages'
 const SS_ANALYSIS   = 'linguist_conv_analysis'
 const SS_PHASE      = 'linguist_conv_phase'
+const SS_SCENARIO   = 'linguist_conv_scenario'
 
 function readSS(key, fallback) {
   try { const v = sessionStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback }
@@ -140,6 +141,18 @@ function AnalysisPanel({ analysis, onAddWord, addedWords }) {
         </div>
       )}
 
+      {/* Tone & Register Evaluation */}
+      {analysis.tone_evaluation && (
+        <div className="card" style={{ borderColor: 'rgba(217,70,239,0.3)', background: 'rgba(217,70,239,0.06)' }}>
+          <div className="section-title" style={{ color: 'var(--clr-accent)', margin: 0, marginBottom: 'var(--space-2)' }}>🎭 Tone & Register Evaluation</div>
+           <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-primary)', fontWeight: 600, margin: 0 }}>Tone Detected: {analysis.tone_evaluation.tone_detected}</p>
+           <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)', marginTop: 'var(--space-2)' }}>{analysis.tone_evaluation.appropriateness}</p>
+           {analysis.tone_evaluation.suggestion && (
+              <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)', marginTop: 'var(--space-1)' }}>💡 <i>{analysis.tone_evaluation.suggestion}</i></p>
+           )}
+        </div>
+      )}
+
 
       {/* CEFR + Strengths */}
       <div className="card" style={{ borderColor: 'rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.04)' }}>
@@ -208,6 +221,7 @@ export default function ConversationMode() {
 
   const [phase, setPhase]           = useState(() => readSS(SS_PHASE, 'chat'))  // 'chat' | 'analysis'
   const [sessionId, setSessionId]   = useState(() => readSS(SS_SESSION_ID, null))
+  const [scenarioContext, setScenarioContext] = useState(() => readSS(SS_SCENARIO, ''))
   const [messages, setMessages]     = useState(() => readSS(SS_MESSAGES, []))
   const [analysis, setAnalysis]     = useState(() => readSS(SS_ANALYSIS, null))
   const [input, setInput]           = useState('')
@@ -221,6 +235,7 @@ export default function ConversationMode() {
   // Persist to sessionStorage
   useEffect(() => { writeSS(SS_PHASE, phase) }, [phase])
   useEffect(() => { writeSS(SS_SESSION_ID, sessionId) }, [sessionId])
+  useEffect(() => { writeSS(SS_SCENARIO, scenarioContext) }, [scenarioContext])
   useEffect(() => { writeSS(SS_MESSAGES, messages) }, [messages])
   useEffect(() => { writeSS(SS_ANALYSIS, analysis) }, [analysis])
 
@@ -273,7 +288,7 @@ export default function ConversationMode() {
     try {
       const sid = await ensureSession()
       const { data, error: fnErr } = await supabase.functions.invoke('analyze-conversation', {
-        body: { session_id: sid }
+        body: { session_id: sid, scenario_context: scenarioContext }
       })
       if (fnErr) throw fnErr
       if (data?.error) throw new Error(data.error)
@@ -310,7 +325,7 @@ export default function ConversationMode() {
     setPhase('chat')
     setError('')
     setAddedWords(new Set())
-    ;[SS_SESSION_ID, SS_MESSAGES, SS_ANALYSIS, SS_PHASE].forEach(k => sessionStorage.removeItem(k))
+    ;[SS_SESSION_ID, SS_MESSAGES, SS_ANALYSIS, SS_PHASE, SS_SCENARIO].forEach(k => sessionStorage.removeItem(k))
   }
 
   function handleKeyDown(e) {
@@ -395,6 +410,16 @@ export default function ConversationMode() {
 
           {/* Input bar */}
           <div className="card" style={{ padding: 'var(--space-4)' }}>
+            <div style={{ marginBottom: 'var(--space-3)' }}>
+               <input 
+                 className="form-input" 
+                 style={{ width: '100%', fontSize: 'var(--font-size-sm)' }} 
+                 placeholder="Optional: Set a scenario (e.g. Job interview, ordering coffee in a loud cafe)" 
+                 value={scenarioContext} 
+                 onChange={e => setScenarioContext(e.target.value)} 
+                 disabled={sending || analyzing}
+               />
+            </div>
             <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-end' }}>
               <textarea
                 ref={inputRef}

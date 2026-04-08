@@ -93,6 +93,37 @@ function AnalysisResult({ result, onAddWord, addedWords }) {
         </div>
       </div>
 
+      {/* Tone Evaluation */}
+      {result.tone_evaluation && (
+        <div className="card" style={{ borderColor: 'rgba(217,70,239,0.3)', background: 'rgba(217,70,239,0.06)' }}>
+          <div className="section-title" style={{ color: 'var(--clr-accent)', margin: 0, marginBottom: 'var(--space-2)' }}>🎭 Tone & Register Evaluation</div>
+          <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-primary)', fontWeight: 600, margin: 0 }}>Tone Detected: {result.tone_evaluation.tone_detected}</p>
+          <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)', marginTop: 'var(--space-2)' }}>{result.tone_evaluation.appropriateness}</p>
+          {result.tone_evaluation.suggestion && (
+             <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)', marginTop: 'var(--space-1)' }}>💡 <i>{result.tone_evaluation.suggestion}</i></p>
+          )}
+        </div>
+      )}
+
+      {/* Grammar explanations */}
+      {result.error_highlights && result.error_highlights.length > 0 && (
+         <div className="card">
+           <div className="section-title">🔍 Grammar & Vocabulary Explanations</div>
+           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              {result.error_highlights.map((err, i) => (
+                <div key={i} style={{ padding: 'var(--space-3)', background: 'var(--clr-bg-surface-elevated)', borderRadius: 'var(--radius-md)', borderLeft: '3px solid var(--clr-danger)' }}>
+                  <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-2)' }}>
+                    <span style={{ textDecoration: 'line-through', color: 'var(--clr-danger)', opacity: 0.8 }}>{err.original}</span>
+                    <span>→</span>
+                    <span style={{ color: 'var(--clr-success)', fontWeight: 600 }}>{err.corrected}</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)' }}>💡 {err.explanation}</p>
+                </div>
+              ))}
+           </div>
+         </div>
+      )}
+
       {/* Active Recall Report */}
       {result.recall_report && (
         <div className="card">
@@ -140,6 +171,7 @@ export default function WritingSpace() {
 
   // Restore from sessionStorage on mount
   const [text, setText]         = useState(() => readSS(SS_TEXT, ''))
+  const [scenarioContext, setScenarioContext] = useState(() => readSS('linguist_writing_scenario', ''))
   const [result, setResult]     = useState(() => readSS(SS_RESULT, null))
   const [error, setError]       = useState(() => readSS(SS_ERROR, ''))
   const [addedWords, setAddedWords] = useState(() => new Set(readSS(SS_ADDED, [])))
@@ -149,6 +181,7 @@ export default function WritingSpace() {
 
   // Keep sessionStorage in sync with state
   useEffect(() => { writeSS(SS_TEXT,   text)          }, [text])
+  useEffect(() => { writeSS('linguist_writing_scenario', scenarioContext) }, [scenarioContext])
   useEffect(() => { writeSS(SS_RESULT, result)        }, [result])
   useEffect(() => { writeSS(SS_ERROR,  error)         }, [error])
   useEffect(() => { writeSS(SS_ADDED,  [...addedWords]) }, [addedWords])
@@ -160,7 +193,7 @@ export default function WritingSpace() {
     setResult(null)
     try {
       const { data, error: fnError } = await supabase.functions.invoke('analyze-writing', {
-        body: { writing_text: text }
+        body: { writing_text: text, scenario_context: scenarioContext }
       })
       if (fnError) throw fnError
       if (data?.error) throw new Error(data.error)
@@ -240,6 +273,16 @@ export default function WritingSpace() {
       <DailyVocabMissions />
 
       <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+           <input 
+             className="form-input" 
+             style={{ width: '100%', fontSize: 'var(--font-size-sm)' }} 
+             placeholder="Optional: What is the context? (e.g. Formal email, casual chat, academic essay)" 
+             value={scenarioContext} 
+             onChange={e => setScenarioContext(e.target.value)} 
+             disabled={loading}
+           />
+        </div>
         <textarea
           id="writing-input"
           className="form-textarea"
