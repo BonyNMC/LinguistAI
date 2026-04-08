@@ -395,6 +395,7 @@ export default function StudyList() {
                       onChange={e => handleStatusChange(w.id, e.target.value)}
                     >
                       <option value="learning">Learning</option>
+                      <option value="reviewing">Reviewing</option>
                       <option value="mastered">Mastered</option>
                       <option value="suspended">Suspended</option>
                     </select>
