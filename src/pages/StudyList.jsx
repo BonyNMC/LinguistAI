@@ -86,6 +86,131 @@ function AddWordModal({ onClose, onSave }) {
   )
 }
 
+// ── MasteryGuide ────────────────────────────────────────────────
+// Collapsible learning guide explaining the 4-stage mastery journey.
+// Uses the user's real word stats to personalize the message.
+function MasteryGuide({ words }) {
+  const [open, setOpen] = useState(false)
+
+  const learning = words.filter(w => w.status === 'learning').length
+  const reviewing = words.filter(w => w.status === 'reviewing').length
+  const mastered = words.filter(w => w.status === 'mastered').length
+  const total = words.length
+
+  const STAGES = [
+    {
+      icon: '📖', label: 'Learning', range: '0 – 79%', color: '#60a5fa',
+      desc: 'A new or recently added word. You\'re building first contact — your brain is still forming the neural pathway for this word.',
+      earn: 'Each time you use it in Writing or Conversation → +10 pts. Each correct Review challenge → +8 pts.',
+    },
+    {
+      icon: '🔄', label: 'Reviewing', range: '80 – 99%', color: '#a78bfa',
+      desc: 'Strong recognition — you\'ve seen and used this word enough that it\'s familiar. But familiarity isn\'t fluency yet. You need more spaced exposures to make it automatic.',
+      earn: 'Keep using it in writing. Keep reviewing via SRS. Each session deepens the memory trace.',
+    },
+    {
+      icon: '🌟', label: 'Mastered', range: '100%', color: '#34d399',
+      desc: 'Fully acquired. You can produce this word naturally in context without hesitation. This is the goal — Krashen calls it \'acquired\' vs. \'learned\'.',
+      earn: 'Worth +100 Overall Score on the Leaderboard. Every 90 days, a quick Maintenance Check confirms it\'s still there.',
+    },
+    {
+      icon: '🔧', label: 'Maintenance', range: 'Every 90 days', color: '#f59e0b',
+      desc: 'Even mastered words benefit from a periodic check — Ebbinghaus showed memory traces do thin over time without any exposure. But your score won\'t drop automatically.',
+      earn: 'Pass → confirmed, next check in 90 days. Fail → mastery to 70%, back to Reviewing. Honest, not punishing.',
+    },
+  ]
+
+  return (
+    <div style={{ marginBottom: 'var(--space-4)' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'rgba(99,102,241,0.06)', border: '1px solid var(--clr-border)',
+          borderRadius: open ? 'var(--radius-md) var(--radius-md) 0 0' : 'var(--radius-md)',
+          padding: 'var(--space-3) var(--space-4)', cursor: 'pointer',
+          transition: 'background 0.2s',
+        }}
+        id="mastery-guide-toggle"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 16 }}>🧠</span>
+          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--clr-text-primary)' }}>
+            How Mastery Works
+          </span>
+          {total > 0 && (
+            <span style={{ fontSize: 10, color: 'var(--clr-text-muted)', background: 'var(--clr-bg-elevated)', padding: '1px 8px', borderRadius: 99, border: '1px solid var(--clr-border)' }}>
+              {mastered}/{total} mastered · {reviewing} reviewing · {learning} learning
+            </span>
+          )}
+        </div>
+        <span style={{ fontSize: 12, color: 'var(--clr-text-muted)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+      </button>
+
+      {open && (
+        <div style={{
+          border: '1px solid var(--clr-border)', borderTop: 'none',
+          borderRadius: '0 0 var(--radius-md) var(--radius-md)',
+          background: 'var(--clr-bg-surface)', padding: 'var(--space-5)',
+        }}>
+          {/* Journey pipeline */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 'var(--space-5)', overflowX: 'auto', paddingBottom: 4 }}>
+            {STAGES.map((s, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <div style={{
+                  background: `${s.color}14`, border: `1.5px solid ${s.color}40`,
+                  borderRadius: 'var(--radius-md)', padding: '6px 14px', textAlign: 'center', minWidth: 100,
+                }}>
+                  <div style={{ fontSize: 18, marginBottom: 2 }}>{s.icon}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: s.color }}>{s.label}</div>
+                  <div style={{ fontSize: 9, color: 'var(--clr-text-muted)', marginTop: 1 }}>{s.range}</div>
+                </div>
+                {i < STAGES.length - 1 && (
+                  <div style={{ fontSize: 16, color: 'var(--clr-text-muted)', padding: '0 6px', flexShrink: 0 }}>→</div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Stage details */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+            {STAGES.map((s, i) => (
+              <div key={i} style={{ borderLeft: `3px solid ${s.color}`, paddingLeft: 'var(--space-3)', paddingRight: 'var(--space-2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span>{s.icon}</span>
+                  <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: s.color }}>{s.label}</span>
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--clr-text-secondary)', margin: '0 0 6px', lineHeight: 1.6 }}>{s.desc}</p>
+                <p style={{ fontSize: 10, color: 'var(--clr-text-muted)', margin: 0, lineHeight: 1.5 }}>
+                  <strong style={{ color: 'var(--clr-text-secondary)' }}>How to earn: </strong>{s.earn}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Smart tip based on user's current progress */}
+          <div style={{
+            background: 'var(--clr-bg-elevated)', borderRadius: 'var(--radius-md)',
+            padding: 'var(--space-3) var(--space-4)', display: 'flex', gap: 10, alignItems: 'flex-start',
+          }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>💡</span>
+            <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-secondary)', margin: 0, lineHeight: 1.7 }}>
+              {mastered > 0
+                ? <>You've mastered <strong style={{ color: '#34d399' }}>{mastered} word{mastered > 1 ? 's' : ''}</strong>! Keep using them in Writing and Conversation — natural usage is what separates <em>memorized</em> from <em>truly acquired</em>. A Maintenance Check will appear every 90 days to confirm they're still solid.</>
+                : reviewing > 0
+                  ? <>You have <strong style={{ color: '#a78bfa' }}>{reviewing} word{reviewing > 1 ? 's' : ''}</strong> in the Reviewing stage — almost there! Keep writing and doing Review sessions. Once a word hits 100%, it becomes <strong style={{ color: '#34d399' }}>Mastered</strong> (+100 pts on the Leaderboard).</>
+                  : total > 0
+                    ? <>You're building your foundation with <strong style={{ color: '#60a5fa' }}>{total} word{total > 1 ? 's' : ''}</strong>. Use them in your Writing and Conversation sessions — every time the AI detects a study word in your text, it gets +10 mastery automatically.</>
+                    : <>Add your first words via <strong>+ Add Word</strong> or import a CSV. Then use them in Writing or Conversation — the AI will detect and credit them automatically.</>
+              }
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function StudyList() {
   const { session } = useAuth()
   const location = useLocation()
@@ -220,6 +345,9 @@ export default function StudyList() {
           <option value="suspended">Suspended</option>
         </select>
       </div>
+
+      {/* ── How Mastery Works ──────────────────────────────────── */}
+      <MasteryGuide words={words} />
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? (
