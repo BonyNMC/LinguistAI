@@ -24,11 +24,11 @@
 - Encrypts and saves to `user_profiles.api_key_encrypted`.
 - Critical: Disables gateway JWT check; validates internally.
 
-### 2. `analyze-writing` (v15 current)
-- Input: `{ writing_text }`
+### 2. `analyze-writing` (v17 current)
+- Input: `{ writing_text, scenario_context }`
 - Hybrid Prompt + Multi-Provider support via `callLLM()`.
 - After analysis: calls `creditVocabUsage()` to award +10 mastery for each study word found in the writing text.
-- Returns: `{ analysed_text_marked_up, recall_report, native_spoken_rewrite, new_vocabulary_suggestions, cefr_estimate, credited_words[] }`
+- Returns: `{ analysed_text_marked_up, recall_report, native_spoken_rewrite, new_vocabulary_suggestions, cefr_estimate, tone_evaluation, error_highlights, credited_words[] }`
 
 ### 3. `generate-challenge` (Review Step 1)
 - Fetches word + profile → `callLLM()` → scenario.
@@ -82,17 +82,17 @@
 - AI replies as a natural conversation partner. **NEVER corrects grammar mid-chat.** Appends messages to `conversation_sessions`.
 - Output: `{ reply: text, messages: updated_array }`
 
-### 6. `analyze-conversation` (v2 current)
-- Input: `{ session_id }`
+### 6. `analyze-conversation` (v4 current)
+- Input: `{ session_id, scenario_context }`
 - Reads all messages, analyzes ONLY [Learner] turns.
 - After analysis: calls `creditVocabUsage()` to award +10 mastery for each study word found in the learner's messages.
-- Returns: `{ cefr_estimate, strengths, improvement_areas[], error_highlights[], vocabulary_suggestions[], title, credited_words[] }`
+- Returns: `{ cefr_estimate, strengths, improvement_areas[], error_highlights[], vocabulary_suggestions[], tone_evaluation, title, credited_words[] }`
 - Also updates `user_profiles.cefr_detected` via Weighted Moving Average.
 
-### Updated: `analyze-writing` (v14)
-- Now returns `cefr_estimate` field.
+### Updated: `analyze-writing` (v17)
+- Now returns `cefr_estimate`, `tone_evaluation`, `error_highlights[]`.
 - Updates `user_profiles` CEFR columns after each analysis.
-- Prompt now uses `cefr_detected` + i+1 hypothesis for native rewrite and vocab suggestions.
+- Prompt now uses `cefr_detected` + i+1 hypothesis for native rewrite and vocab suggestions, alongside `scenario_context`.
 
 ### Updated: `generate-challenge` (v9)
 - New optional params: `story_mode: bool`, `story_context: text|null`

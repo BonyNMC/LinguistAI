@@ -37,6 +37,14 @@
 - Instruct the AI to **naturally incorporate 1-2 of the session's focus words** into the rewrite where contextually appropriate.
 - Concept: **Comprehensible Input (Krashen i+1)** (Learner sees their own study words used correctly in context) and **Output Hypothesis (Swain)**.
 
+### Metalinguistic Feedback & Explanations (Phase 18)
+- The AI MUST provide explicit, rule-based grammatical or pragmatic explanations for every correction. It is not enough to just provide the "Corrected" version. 
+- The `explanation` field in `error_highlights` fosters "Aha!" moments by revealing *why* the learner's usage was wrong.
+
+### Contextual Tone & Register Evaluation (Phase 18)
+- Language appropriateness depends entirely on context (e.g. casual chat vs. formal email). Both `analyze-writing` and `analyze-conversation` accept an optional `scenario_context` parameter string.
+- The AI evaluates whether the register is appropriate for the given context, returning a `tone_evaluation` JSON block with feedback.
+
 ---
 
 ## 🎯 Phase 15 — Pedagogy Extensions
