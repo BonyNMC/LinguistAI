@@ -382,6 +382,18 @@ export default function ConversationMode() {
               <p style={{ color: 'var(--clr-text-secondary)', maxWidth: 480, margin: '0 auto var(--space-4)' }}>
                 Write anything in English. Talk about your day, your work, any topic. The AI won't correct you mid-chat — just enjoy the conversation!
               </p>
+              
+              <div style={{ maxWidth: 480, margin: '0 auto var(--space-6)', textAlign: 'left' }}>
+                 <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--clr-text-muted)', display: 'block', marginBottom: 'var(--space-2)' }}>🎭 Scenario Context (Optional)</label>
+                 <input 
+                   className="form-input" 
+                   style={{ width: '100%', fontSize: 'var(--font-size-sm)' }} 
+                   placeholder="e.g., Job interview, ordering coffee in a loud cafe" 
+                   value={scenarioContext} 
+                   onChange={e => setScenarioContext(e.target.value)} 
+                 />
+              </div>
+
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', justifyContent: 'center' }}>
                 {['Tell me about your current project at work.', 'What are your goals for learning English?', 'Describe a challenge you faced recently.'].map(s => (
                   <button key={s} className="btn btn-ghost btn-sm" onClick={() => setInput(s)}>{s}</button>
@@ -395,6 +407,18 @@ export default function ConversationMode() {
               padding: 'var(--space-5)', marginBottom: 'var(--space-4)',
               maxHeight: 480, overflowY: 'auto', display: 'flex', flexDirection: 'column',
             }}>
+              <div style={{ marginBottom: 'var(--space-4)' }}>
+                 <input 
+                   className="form-input" 
+                   style={{ width: '100%', fontSize: 'var(--font-size-xs)', padding: '6px 12px', background: 'var(--clr-bg-surface-elevated)' }} 
+                   placeholder="Scenario context (optional, e.g. Job interview)" 
+                   value={scenarioContext} 
+                   onChange={e => setScenarioContext(e.target.value)} 
+                   disabled={sending || analyzing}
+                   title="Update scenario context before finishing"
+                 />
+              </div>
+
               {messages.map((msg, i) => <MessageBubble key={i} msg={msg} />)}
               {sending && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'var(--space-3)' }}>
@@ -410,16 +434,6 @@ export default function ConversationMode() {
 
           {/* Input bar */}
           <div className="card" style={{ padding: 'var(--space-4)' }}>
-            <div style={{ marginBottom: 'var(--space-3)' }}>
-               <input 
-                 className="form-input" 
-                 style={{ width: '100%', fontSize: 'var(--font-size-sm)' }} 
-                 placeholder="Optional: Set a scenario (e.g. Job interview, ordering coffee in a loud cafe)" 
-                 value={scenarioContext} 
-                 onChange={e => setScenarioContext(e.target.value)} 
-                 disabled={sending || analyzing}
-               />
-            </div>
             <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-end' }}>
               <textarea
                 ref={inputRef}

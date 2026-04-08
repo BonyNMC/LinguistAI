@@ -274,6 +274,7 @@ export default function WritingSpace() {
 
       <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
         <div style={{ marginBottom: 'var(--space-4)' }}>
+           <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--clr-text-muted)', display: 'block', marginBottom: 'var(--space-2)' }}>🎭 Scenario Context (Optional)</label>
            <input 
              className="form-input" 
              style={{ width: '100%', fontSize: 'var(--font-size-sm)' }} 
