@@ -4,6 +4,12 @@ import { useAuth } from '../App.jsx'
 import { SpeakButton } from '../components/SpeakButton.jsx'
 
 // SM-2 Algorithm
+// ── SRS Status Lifecycle ────────────────────────────────────────
+// new → learning (0–79) → reviewing (80–99) → mastered (100)
+// 'reviewing' = word is known well, but needs continued spaced exposure
+//               before it can be considered truly acquired (mastered)
+// This follows the i+1 acquisition hypothesis: consolidation requires
+// multiple spaced successful retrievals, not just a single correct use.
 function calcNextReview(mastery, quality, ef, reps) {
   // quality: 0-5 (0=fail, 5=perfect)
   let newEf = Math.max(1.3, ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)))
@@ -16,7 +22,17 @@ function calcNextReview(mastery, quality, ef, reps) {
   const nextDate = new Date()
   nextDate.setDate(nextDate.getDate() + interval)
   const newMastery = Math.min(100, Math.max(0, mastery + (quality >= 3 ? 8 : -15)))
-  const newStatus = newMastery >= 80 ? 'mastered' : newMastery < 10 ? 'learning' : undefined
+
+  // Status transitions:
+  // - 'mastered' only at 100 (fully acquired via sustained SRS + real usage)
+  // - 'reviewing' at 80–99 (high retention, longer intervals, still consolidating)
+  // - 'learning' below 10 (lapsed — needs re-learning from scratch)
+  // - undefined = stay at current status
+  let newStatus
+  if (newMastery >= 100) newStatus = 'mastered'
+  else if (newMastery >= 80) newStatus = 'reviewing'
+  else if (newMastery < 10) newStatus = 'learning'
+
   return { ef: newEf, reps: newReps, next_review_due_at: nextDate.toISOString(), mastery: newMastery, status: newStatus }
 }
 
@@ -46,7 +62,10 @@ export default function Review() {
       .from('user_vocab_progress')
       .select('id, mastery_level, status, ef_factor, repetitions, vocab_master(id, word_phrase, type, domain, definition)')
       .eq('user_id', session.user.id)
-      .eq('status', 'learning')
+      // Include both 'learning' and 'reviewing' — words at 80–99 mastery
+      // still need spaced repetition to reach full acquisition (mastery=100).
+      // Excluding 'reviewing' would strand half-learned words permanently.
+      .in('status', ['learning', 'reviewing'])
       .lte('next_review_due_at', new Date().toISOString())
       .order('next_review_due_at', { ascending: true })
       .limit(20)

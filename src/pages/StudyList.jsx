@@ -3,7 +3,13 @@ import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../App.jsx'
 import { SpeakButton } from '../components/SpeakButton.jsx'
 
-const WORD_TYPES = ['vocab', 'phrasal_verb', 'idiom', 'linking_verb']
+// Word type taxonomy (from a Language Acquisition perspective):
+// - 'vocab'        : general single words (nouns, verbs, adjectives, adverbs)
+// - 'phrasal_verb' : verb + particle combinations (e.g. 'bring up', 'give in')
+// - 'idiom'        : fixed expressions with figurative meaning (e.g. 'hit the nail on the head')
+// - 'linking_word' : discourse connectors & cohesive devices (e.g. 'moreover', 'in contrast')
+//                    NOT 'linking_verb' — that is a grammar term for BE/seem/appear, not a learnable lexical chunk
+const WORD_TYPES = ['vocab', 'phrasal_verb', 'idiom', 'linking_word']
 const STATUS_COLORS = { learning: 'badge-info', mastered: 'badge-success', suspended: 'badge-muted' }
 
 function MasteryBar({ value }) {
@@ -203,7 +209,8 @@ export default function StudyList() {
         <select className="form-select" style={{ maxWidth: 160 }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} id="filter-status">
           <option value="">All statuses</option>
           <option value="learning">Learning</option>
-          <option value="mastered">Mastered</option>
+          <option value="reviewing">Reviewing (80–99%)</option>
+          <option value="mastered">Mastered (100%)</option>
           <option value="suspended">Suspended</option>
         </select>
       </div>
