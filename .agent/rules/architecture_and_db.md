@@ -70,10 +70,11 @@
 - `updated_at` (timestamptz)
 - RLS: user can write own row; all authenticated users can SELECT
 
-### `leaderboard` (VIEW)
+### `get_leaderboard` (FUNCTION/RPC)
 - Aggregates `user_vocab_progress`, `conversation_sessions`, `user_writings` per user
+- Replaced the old view to prevent Supabase Security Definer View warning.
 - Only includes `account_status = 'active'` AND `show_on_leaderboard = true`
-- Key columns: `username`, `cefr_detected`, `target_level`, `total_mastery_points`, `words_mastered`, `total_activity_count`
+- Returns TABLE: `user_id`, `username`, `cefr_detected`, `target_level`, `total_mastery_points`, `words_mastered`, `total_activity_count`, `current_streak`, `best_streak`
 
 ## ⚡ Edge Functions (Phase 15 additions)
 

@@ -24,7 +24,7 @@ export default function Leaderboard() {
 
   async function fetchLeaderboard() {
     setLoading(true); setError('')
-    const { data, error: e } = await supabase.from('leaderboard').select('*')
+    const { data, error: e } = await supabase.rpc('get_leaderboard')
     if (e) { setError(e.message); setLoading(false); return }
     setRows(data || [])
     setLoading(false)
