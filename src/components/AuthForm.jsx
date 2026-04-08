@@ -16,7 +16,15 @@ export default function AuthForm() {
     setLoading(true)
     try {
       if (tab === 'signup') {
-        const { error } = await supabase.auth.signUp({ email, password })
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            // Always redirect to the current origin after email confirmation.
+            // This prevents the localhost:3000 issue when the app is deployed to production.
+            emailRedirectTo: `${window.location.origin}/`,
+          },
+        })
         if (error) throw error
         setMessage('Check your email to confirm your account!')
       } else {
