@@ -5,15 +5,15 @@ import NavBar from '../components/NavBar.jsx'
 const STATUS_OPTIONS = ['pending', 'active', 'suspended']
 
 const STATUS_BADGE = {
-  pending:   { label: 'Pending',   cls: 'badge-pending' },
-  active:    { label: 'Active',    cls: 'badge-active' },
+  pending: { label: 'Pending', cls: 'badge-pending' },
+  active: { label: 'Active', cls: 'badge-active' },
   suspended: { label: 'Suspended', cls: 'badge-suspended' },
 }
 
 export default function AdminDashboard() {
-  const [users, setUsers]       = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState(null)
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [updating, setUpdating] = useState({}) // { [userId]: true }
 
   async function loadUsers() {
@@ -87,8 +87,8 @@ export default function AdminDashboard() {
     return id ? id.slice(0, 8) + '…' : '—'
   }
 
-  const totalUsers   = users.length
-  const activeUsers  = users.filter(u => u.account_status === 'active').length
+  const totalUsers = users.length
+  const activeUsers = users.filter(u => u.account_status === 'active').length
   const pendingUsers = users.filter(u => u.account_status === 'pending').length
 
   return (
