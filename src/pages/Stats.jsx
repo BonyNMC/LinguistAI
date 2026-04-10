@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../App.jsx'
 
@@ -196,6 +197,7 @@ function LineChart({ dataByDay }) {
 // ── Main Stats Page ───────────────────────────────────────────────
 export default function Stats() {
   const { session } = useAuth()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
@@ -416,6 +418,20 @@ export default function Stats() {
                       <div style={{ width: 28, fontSize: 'var(--font-size-xs)', fontWeight: 700, color: typeColors[type] || 'var(--clr-text-muted)', textAlign: 'right', flexShrink: 0 }}>
                         {count}
                       </div>
+                      {type === 'grammar' && count > 0 && (
+                        <button
+                          onClick={() => navigate('/review?grammar=grammar')}
+                          style={{
+                            padding: '2px 10px', borderRadius: 'var(--radius-full)', border: '1px solid #f87171',
+                            background: 'rgba(248,113,113,0.08)', color: '#f87171',
+                            fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                            flexShrink: 0, whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                          }}
+                          title={`Practice grammar — ${count} errors recorded`}
+                        >
+                          🎯 Practice
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
