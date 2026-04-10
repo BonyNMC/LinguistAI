@@ -174,3 +174,33 @@ new → learning (0–79) → reviewing (80–99) → mastered (100) → [mainte
 - `genre` field is sent to `analyze-writing` via body — the Edge Function uses it in the `scenarioInstruction` to evaluate genre-appropriate register.
 - ⚠️ `GENRES` is static frontend data — never stored in DB or Edge Functions.
 
+---
+
+## ✏️ Phase 22 — Cloze Practice (Redesigned)
+
+### Multi-Blank Passage Cloze
+- **Pedagogical rationale**: Single-blank (knowing the word in advance) was too easy. Multi-blank forces retrieval of multiple words simultaneously in context — closer to real production.
+- `generate-cloze` v2 automatically selects **3–5 due words** (same SM-2 priority as regular review: lowest mastery + most overdue).
+- AI generates ONE **connected prose passage** with ALL words as numbered blanks `[1]`, `[2]`...
+- **Word bank** displayed as reference only — learner must TYPE each answer manually.
+  - ⚠️ **No click-to-assign, no dropdown**. Manual typing is deliberate: builds orthographic memory (spelling) and motor-memory, not just recognition.
+- **Typo tolerance**: edit distance ≤ 1 (catches typos, not wild guesses).
+- **SRS update**: each blank graded and updated **independently** with `await` — prevents leaderboard desync.
+- `<ClozePassage>` inline component: parses `[N]` tokens in passage → renders `<input>` fields inline in text flow. Width adaptive to target word length.
+
+---
+
+## 📏 Phase 22 — Grammar Practice (New Track)
+
+### Error-Adaptive Grammar Drills
+- **Pedagogical rationale**: Learners repeat the same grammar mistakes session after session. Aggregating `error_highlights[type=grammar]` across 60 recent sessions exposes systemic gaps the learner themselves are unlikely to notice.
+- `generate-grammar-exercise` collects grammar errors from last 30 writings + last 30 conversations.
+- LLM identifies the **primary grammar weakness** from the error patterns (e.g., "Past Perfect vs Simple Past", "Subject-Verb Agreement") and generates 5 MCQ exercises targeting that exact topic.
+- Format: `sentence_before + _____ + sentence_after` with 4 plausible options (wrong options are *common mistakes*, not obviously absurd).
+- **Grammar ≠ SRS**: Grammar exercises are a separate skill track — they do NOT update `user_vocab_progress`. Grammar improvement is measured via declining error rates in future writings/conversations.
+- Triggered from **Stats page**: "🎯 Practice" button next to Grammar bar → `/review?grammar=grammar`.
+- Review page detects `?grammar` URL param → auto-selects 📏 Grammar tab → auto-loads exercises.
+- Score shown as % after submitting all 5 — educator transparency.
+- "🔄 New Set" re-calls the Edge Function (may identify same or different grammar topic depending on latest error data).
+
+

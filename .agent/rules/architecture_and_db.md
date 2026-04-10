@@ -23,7 +23,7 @@
 - ⚠️ `'linking_verb'` is **WRONG** and will cause a DB constraint violation. Always use `'linking_word'`.
 - The DB migration was applied on 2026-04-10 to fix the old incorrect constraint. The constraint is now authoritative.
 
-## ⚡ Edge Functions (8 total — KEEP SEPARATE)
+## ⚡ Edge Functions (10 total — KEEP SEPARATE)
 ### 1. `save-api-key`
 - Input: `{ raw_api_key }`
 - Encrypts and saves to `user_profiles.api_key_encrypted`.
@@ -165,9 +165,9 @@
 - Lists top 5 recurring specific errors (original → corrected pairs)
 - No new API calls — pure client-side aggregation from existing data
 
-### Modified: Review.jsx — 3-Mode Toggle + Enhanced Features
-- Mode toggle: ✍️ Challenge | 📖 Story | ✏️ Cloze (replaces old Story Mode switch)
-- **Cloze Mode**: calls `generate-cloze`, user fills blank, edit-distance tolerance
+### Modified: Review.jsx — 3-Mode Toggle + Enhanced Features (Phase 21)
+- Mode toggle: ✍️ Challenge | 📖 Story | ✏️ Cloze (replaced old Story Mode switch)
+- **Cloze Mode** (Phase 21, SUPERSEDED by Phase 22 — see below)
 - **Enhanced Shadowing**: word-level diff (green=hit, red=miss), IPA phonetic from Dictionary API, max 3 attempts counter
 
 ### Modified: WritingSpace.jsx — Genre Scaffolding
@@ -175,4 +175,73 @@
 - Selecting a genre auto-fills Scenario Context and reveals structure outline + clickable useful phrases
 - `genre` field sent to `analyze-writing` for genre-aware register evaluation
 - `GENRES` constant is hardcoded (no API needed)
+
+---
+
+## ⚡ Edge Functions (Phase 22 — commit b2ba223)
+
+### 10. `generate-cloze` (v2 — REPLACE v1, Multi-Blank Passage)
+- **Input**: none — reads user from JWT automatically
+- **Logic**:
+  1. Fetches top 3–5 due words (status learning/reviewing, lowest mastery + most overdue)
+  2. Prompt asks AI to generate ONE connected passage embedding ALL words as numbered blanks `[1]`, `[2]`…
+  3. Shuffles word list into a `word_bank` array (reference only — user must type)
+- **Output**:
+```json
+{
+  "passage": "She decided to [1] the issue before trying to [2] a solution…",
+  "blanks": [{"index": 1, "target": "look into", "vocab_id": "uuid"}],
+  "word_bank": ["come up with", "look into"],
+  "progress_ids": {"vocab_uuid": "progress_uuid"}
+}
+```
+- SRS updated **per word** (each blank graded independently with `await`)
+- Typo tolerance: edit distance ≤ 1
+
+### 11. `generate-grammar-exercise` (NEW)
+- **Input**: none — reads error history from DB via JWT
+- **Logic**:
+  1. Queries last 30 `user_writings.writing_analysed.error_highlights` where `type = 'grammar'`
+  2. Queries last 30 `conversation_sessions.analysis.error_highlights` where `type = 'grammar'`
+  3. Sends error list to LLM → LLM identifies PRIMARY grammar weakness + generates 5 MCQ drills
+- **Output**:
+```json
+{
+  "grammar_topic": "Past Perfect vs Simple Past",
+  "topic_explanation": "Brief explanation of why this is common at this level",
+  "exercises": [
+    {
+      "sentence_before": "By the time she arrived, he",
+      "sentence_after": "already left.",
+      "options": ["had already", "already has", "already", "was already having"],
+      "correct_index": 0,
+      "explanation": "Past perfect (had + V3) for action completed before another past action."
+    }
+  ]
+}
+```
+- No DB writes — grammar exercises are session-only (not SRS-linked)
+
+## 🖥️ Phase 22 — Frontend Features
+
+### Modified: Review.jsx — 4-Mode Toggle (COMPLETE REWRITE)
+- Mode toggle: ✍️ Challenge | 📖 Story | ✏️ Cloze | 📏 Grammar
+- **Cloze Mode (REDESIGNED)**:
+  - Independent of current word card — fetches 3–5 words autonomously
+  - Inline `<ClozePassage>` component parses `[1]`, `[2]` placeholders → renders `<input>` fields inline in text
+  - Word bank shown as reference pills (read-only) — user MUST type answers manually (deliberate: builds orthographic memory)
+  - Submit graded per-blank, each awaited independently → leaderboard updates immediately
+  - Result: passage shows with green ✓ / red ✗ per blank + correct answer shown for wrong blanks
+- **Grammar Mode (NEW)**:
+  - URL-param activated: `/review?grammar=grammar` → auto-selects Grammar tab and auto-loads exercises
+  - `<GrammarCard>` component: sentence with `_____`, 4 MCQ options, inline explanation shown after submit
+  - Score shown as % after "Submit All" — all 5 exercises graded at once
+  - "🔄 New Set" generates a fresh batch
+  - Does NOT touch SRS (grammar is a separate skill track)
+- **Bug Fix (Leaderboard)**: `handleSubmitCloze` changed from sync to `async` with `await` on each DB update
+
+### Modified: Stats.jsx — Grammar Practice CTA
+- `useNavigate` import added
+- "🎯 Practice" button appears next to grammar error bar (only visible when grammar error count > 0)
+- Navigates to `/review?grammar=grammar`
 
