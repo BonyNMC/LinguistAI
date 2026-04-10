@@ -74,3 +74,10 @@
 - **ActivityHeatmap**: CSS grid of 13×13px day cells spanning ~181 days. Color levels: 0=dim, 1=35% accent, 2=60% accent, 3+=90% accent. Month labels auto-generated. Today cell has accent border.
 - **LineChart**: Pure inline SVG, `viewBox="0 0 600 140"`. Uses `<polyline>` for line, `<path>` with `linearGradient` for fill, `<text>` for axis labels. X = last 30 days, Y = activity count.
 - Zero external chart/calendar libraries.
+
+## 📱 Phase 20 — Leaderboard Mobile Responsive Rules
+- **Leaderboard table** uses CSS Grid with fixed column template (`GRID = '48px 1fr 72px 72px 72px 88px 72px'`). This MUST be wrapped in `<div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>` with an inner `<div style={{ minWidth: 560 }}>` so mobile users can scroll horizontally.
+- **Sort tabs** (🏆 Overall, 🌟 Most Mastered, etc.) MUST use a horizontal-scroll wrapper (`overflowX: 'auto'`, `minWidth: 'max-content'`) instead of `flexWrap: 'wrap'` — prevents tabs from wrapping to multiple lines on narrow screens.
+- `WebkitOverflowScrolling: 'touch'` is required for smooth momentum scrolling on iOS Safari.
+- ⚠️ Never use `overflow: 'hidden'` on the outer `.card` wrapper if the inner grid needs horizontal scroll — it will block the scroll. Use `padding: 0, overflow: 'hidden'` only on the card, then put the scrollable wrapper **inside** it.
+

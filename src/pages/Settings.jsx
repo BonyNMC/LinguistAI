@@ -157,11 +157,15 @@ export default function Settings() {
       })
       .eq('id', session.user.id)
     setSavingProfile(false)
+    if (!error) {
+      // Clear Daily Mission cache so it regenerates with the new focus_topic/persona
+      sessionStorage.removeItem('linguist_daily_mission')
+    }
     setProfileMsg(error
       ? { type: 'danger', text: error.message }
-      : { type: 'success', text: '✅ Settings saved!' }
+      : { type: 'success', text: '✅ Settings saved! Your Daily Mission will refresh with the new topic.' }
     )
-    setTimeout(() => setProfileMsg(null), 3000)
+    setTimeout(() => setProfileMsg(null), 4000)
   }
 
   async function handleSaveApiKey(e) {

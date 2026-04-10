@@ -18,6 +18,11 @@
 
 ... [remaining tables: vocab_master, user_vocab_progress, user_writings unchanged]
 
+### `vocab_master` — Type Constraint (CRITICAL)
+- **`vocab_master_type_check`** constraint allows ONLY: `'vocab'`, `'phrasal_verb'`, `'idiom'`, `'linking_word'`
+- ⚠️ `'linking_verb'` is **WRONG** and will cause a DB constraint violation. Always use `'linking_word'`.
+- The DB migration was applied on 2026-04-10 to fix the old incorrect constraint. The constraint is now authoritative.
+
 ## ⚡ Edge Functions (4 total — KEEP SEPARATE)
 ### 1. `save-api-key`
 - Input: `{ raw_api_key }`

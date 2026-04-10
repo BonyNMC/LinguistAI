@@ -23,6 +23,7 @@
 - Prompts use few-shot examples with mixed types to prevent AI defaulting to all `vocab` single words.
 - Valid types: `vocab` | `phrasal_verb` | `idiom` | `linking_word`
 - ⚠️ `linking_word` (discourse connectors: *however, moreover, in contrast*) ≠ `linking_verb` (grammar term for BE/seem/appear). The former is correct.
+- ⚠️ The DB constraint `vocab_master_type_check` only allows `linking_word`. Using `linking_verb` causes a DB insert error.
 
 ### `creditVocabUsage()` — Mastery Credit on Usage (Phase 16)
 - Both `analyze-writing` (v15+) and `analyze-conversation` (v2+) call this shared helper after AI analysis completes.
@@ -104,3 +105,20 @@ new → learning (0–79) → reviewing (80–99) → mastered (100) → [mainte
 - Uses **Web Speech API** (SpeechSynthesisUtterance for TTS, SpeechRecognition for input).
 - Score = word overlap % between target text and recognized speech. Purely client-side, no backend.
 - Only works on Chrome/Edge — show informational alert for unsupported browsers.
+
+---
+
+## 🌍 Phase 20 — Focus Topic & Mission Content Rules
+
+### `focus_topic` Fallback (MANDATORY)
+- When `profile.focus_topic` is **empty or not set**, Edge Functions MUST NOT default to `'General professional English'` — this biases all generated content toward work/office scenarios.
+- **Correct fallback**: `'everyday life, hobbies, travel, and personal experiences'`
+- This applies to: `generate-challenge` (v10+), `generate-daily-mission` (v2+), `chat-message`.
+
+### `generate-daily-mission` Prompt Rules
+- The prompt MUST include a `CRITICAL RULES` section explicitly stating: *do NOT default to office/work/business scenarios unless the learner's stated focus area is professional/work-related.*
+- The generated `topic` MUST reflect the actual `focus_topic`, not a generic work fallback.
+
+### Daily Mission Cache Invalidation
+- `DailyVocabMissions.jsx` caches the mission in `sessionStorage` key `linguist_daily_mission` for the session.
+- `Settings.jsx` **MUST** call `sessionStorage.removeItem('linguist_daily_mission')` on successful profile save (`handleSaveProfile`) so the new `focus_topic`/`ai_persona` takes effect immediately next time the user visits Writing or Conversation.

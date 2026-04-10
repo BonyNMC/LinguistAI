@@ -113,22 +113,24 @@ export default function Leaderboard() {
 
       {error && <div className="alert alert-danger">⚠️ {error}</div>}
 
-      {/* Sort tabs */}
-      <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
-        {TABS.map(t => (
-          <button
-            key={t.key} id={`tab-${t.key}`}
-            onClick={() => setTab(t.key)}
-            style={{
-              padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius-md)',
-              border: tab === t.key ? '2px solid var(--clr-accent)' : '1px solid var(--clr-border)',
-              background: tab === t.key ? 'rgba(99,102,241,0.12)' : 'var(--clr-bg-raised)',
-              color: tab === t.key ? 'var(--clr-accent-light)' : 'var(--clr-text-secondary)',
-              fontWeight: tab === t.key ? 700 : 400, fontSize: 'var(--font-size-sm)',
-              cursor: 'pointer', transition: 'all .15s',
-            }}
-          >{t.label}</button>
-        ))}
+      {/* Sort tabs — horizontally scrollable on mobile */}
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: 'var(--space-3)', paddingBottom: 2 }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', minWidth: 'max-content' }}>
+          {TABS.map(t => (
+            <button
+              key={t.key} id={`tab-${t.key}`}
+              onClick={() => setTab(t.key)}
+              style={{
+                padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius-md)',
+                border: tab === t.key ? '2px solid var(--clr-accent)' : '1px solid var(--clr-border)',
+                background: tab === t.key ? 'rgba(99,102,241,0.12)' : 'var(--clr-bg-raised)',
+                color: tab === t.key ? 'var(--clr-accent-light)' : 'var(--clr-text-secondary)',
+                fontWeight: tab === t.key ? 700 : 400, fontSize: 'var(--font-size-sm)',
+                cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
+              }}
+            >{t.label}</button>
+          ))}
+        </div>
       </div>
       
       <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', marginBottom: tab === 'overall_score' ? 'var(--space-3)' : 'var(--space-5)' }}>
@@ -186,75 +188,80 @@ export default function Leaderboard() {
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {/* Header row */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: GRID,
-            gap: 'var(--space-3)', padding: 'var(--space-3) var(--space-5)',
-            borderBottom: '1px solid var(--clr-border)',
-            fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', fontWeight: 600,
-          }}>
-            <span style={{ textAlign: 'center' }}>#</span>
-            <span>Learner</span>
-            <span style={{ textAlign: 'right', color: tab === 'overall_score' ? 'var(--clr-accent-light)' : 'inherit' }}>Overall</span>
-            <span style={{ textAlign: 'right', color: tab === 'words_mastered' ? 'var(--clr-accent-light)' : 'inherit' }}>Mastered</span>
-            <span style={{ textAlign: 'right', color: tab === 'total_activity_count' ? 'var(--clr-accent-light)' : 'inherit' }}>Activity</span>
-            <span style={{ textAlign: 'right', color: tab === 'total_mastery_points' ? 'var(--clr-accent-light)' : 'inherit' }}>M. Score</span>
-            <span style={{ textAlign: 'right', color: tab === 'current_streak' ? 'var(--clr-accent-light)' : 'inherit' }}>🔥 Streak</span>
-          </div>
-
-          {sorted.map((row, idx) => {
-            const isMe = row.user_id === myUserId
-            const cefrColor = CEFR_COLORS[row.cefr_detected] || 'var(--clr-accent)'
-            const hl = (key) => ({
-              textAlign: 'right', fontSize: 'var(--font-size-sm)',
-              fontWeight: tab === key ? 800 : 500,
-              color: tab === key ? 'var(--clr-accent-light)' : 'var(--clr-text-secondary)',
-            })
-            return (
-              <div key={row.user_id} id={`leaderboard-row-${idx}`} style={{
+          {/* Horizontally scrollable wrapper for mobile */}
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <div style={{ minWidth: 560 }}>
+              {/* Header row */}
+              <div style={{
                 display: 'grid', gridTemplateColumns: GRID,
-                gap: 'var(--space-3)', padding: 'var(--space-4) var(--space-5)',
-                alignItems: 'center', borderBottom: '1px solid var(--clr-border)',
-                background: isMe ? 'rgba(99,102,241,0.08)' : 'transparent',
-                transition: 'background .15s',
+                gap: 'var(--space-3)', padding: 'var(--space-3) var(--space-5)',
+                borderBottom: '1px solid var(--clr-border)',
+                fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', fontWeight: 600,
               }}>
-                {/* Rank */}
-                <div style={{ textAlign: 'center', fontSize: idx < 3 ? 22 : 'var(--font-size-sm)', fontWeight: 700, color: 'var(--clr-text-muted)' }}>
-                  {RANK_ICONS[idx] ?? (idx + 1)}
-                </div>
-
-                {/* Name + CEFR */}
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <div style={{ fontWeight: isMe ? 700 : 500, color: isMe ? 'var(--clr-accent-light)' : 'var(--clr-text-primary)', fontSize: 'var(--font-size-sm)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.username}</span>
-                    {isMe && <span className="badge badge-accent" style={{ fontSize: 9, flexShrink: 0 }}>You</span>}
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
-                    {row.cefr_detected && (
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 99, color: '#fff', background: cefrColor }}>
-                        {row.cefr_detected}
-                      </span>
-                    )}
-                    {row.target_level && (
-                      <span style={{ fontSize: 10, color: 'var(--clr-text-muted)' }}>Target: {row.target_level}</span>
-                    )}
-                  </div>
-                </div>
-                
-                <div style={{ ...hl('overall_score'), fontWeight: 800 }}>{row.overall_score ?? 0}</div>
-                <div style={hl('words_mastered')}>{row.words_mastered ?? 0}</div>
-                <div style={hl('total_activity_count')}>{row.total_activity_count ?? 0}</div>
-                <div style={hl('total_mastery_points')}>{row.total_mastery_points ?? 0}</div>
-
-                {/* Streak */}
-                <div style={{ ...hl('current_streak'), display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
-                  {(row.current_streak ?? 0) > 0 && <span style={{ fontSize: 14 }}>🔥</span>}
-                  {row.current_streak ?? 0}
-                  <span style={{ fontSize: 9, color: 'var(--clr-text-muted)', marginLeft: 1 }}>d</span>
-                </div>
+                <span style={{ textAlign: 'center' }}>#</span>
+                <span>Learner</span>
+                <span style={{ textAlign: 'right', color: tab === 'overall_score' ? 'var(--clr-accent-light)' : 'inherit' }}>Overall</span>
+                <span style={{ textAlign: 'right', color: tab === 'words_mastered' ? 'var(--clr-accent-light)' : 'inherit' }}>Mastered</span>
+                <span style={{ textAlign: 'right', color: tab === 'total_activity_count' ? 'var(--clr-accent-light)' : 'inherit' }}>Activity</span>
+                <span style={{ textAlign: 'right', color: tab === 'total_mastery_points' ? 'var(--clr-accent-light)' : 'inherit' }}>M. Score</span>
+                <span style={{ textAlign: 'right', color: tab === 'current_streak' ? 'var(--clr-accent-light)' : 'inherit' }}>🔥 Streak</span>
               </div>
-            )
-          })}
+
+              {sorted.map((row, idx) => {
+                const isMe = row.user_id === myUserId
+                const cefrColor = CEFR_COLORS[row.cefr_detected] || 'var(--clr-accent)'
+                const hl = (key) => ({
+                  textAlign: 'right', fontSize: 'var(--font-size-sm)',
+                  fontWeight: tab === key ? 800 : 500,
+                  color: tab === key ? 'var(--clr-accent-light)' : 'var(--clr-text-secondary)',
+                })
+                return (
+                  <div key={row.user_id} id={`leaderboard-row-${idx}`} style={{
+                    display: 'grid', gridTemplateColumns: GRID,
+                    gap: 'var(--space-3)', padding: 'var(--space-4) var(--space-5)',
+                    alignItems: 'center', borderBottom: '1px solid var(--clr-border)',
+                    background: isMe ? 'rgba(99,102,241,0.08)' : 'transparent',
+                    transition: 'background .15s',
+                  }}>
+                    {/* Rank */}
+                    <div style={{ textAlign: 'center', fontSize: idx < 3 ? 22 : 'var(--font-size-sm)', fontWeight: 700, color: 'var(--clr-text-muted)' }}>
+                      {RANK_ICONS[idx] ?? (idx + 1)}
+                    </div>
+
+                    {/* Name + CEFR */}
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                      <div style={{ fontWeight: isMe ? 700 : 500, color: isMe ? 'var(--clr-accent-light)' : 'var(--clr-text-primary)', fontSize: 'var(--font-size-sm)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.username}</span>
+                        {isMe && <span className="badge badge-accent" style={{ fontSize: 9, flexShrink: 0 }}>You</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                        {row.cefr_detected && (
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 99, color: '#fff', background: cefrColor }}>
+                            {row.cefr_detected}
+                          </span>
+                        )}
+                        {row.target_level && (
+                          <span style={{ fontSize: 10, color: 'var(--clr-text-muted)' }}>Target: {row.target_level}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ ...hl('overall_score'), fontWeight: 800 }}>{row.overall_score ?? 0}</div>
+                    <div style={hl('words_mastered')}>{row.words_mastered ?? 0}</div>
+                    <div style={hl('total_activity_count')}>{row.total_activity_count ?? 0}</div>
+                    <div style={hl('total_mastery_points')}>{row.total_mastery_points ?? 0}</div>
+
+                    {/* Streak */}
+                    <div style={{ ...hl('current_streak'), display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                      {(row.current_streak ?? 0) > 0 && <span style={{ fontSize: 14 }}>🔥</span>}
+                      {row.current_streak ?? 0}
+                      <span style={{ fontSize: 9, color: 'var(--clr-text-muted)', marginLeft: 1 }}>d</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
       )}
 
