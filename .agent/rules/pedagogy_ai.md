@@ -18,12 +18,15 @@
 - Prompts for `analyze-writing` must contain explicit, multi-stage rules for `<span class='mark-recall'>` to prevent hallucination.
 - Rules must handle: (1) exact matches only, (2) logic for correct vs. incorrect usage, and (3) a fallback for empty study lists.
 
-### Vocabulary Suggestion Type Diversity (MANDATORY)
-- Both `analyze-writing` and `analyze-conversation` prompts MUST enforce: **at least 1 `phrasal_verb`, 1 `linking_word`, and 1 `idiom`** per `vocabulary_suggestions` / `new_vocabulary_suggestions` array.
-- Prompts use few-shot examples with mixed types to prevent AI defaulting to all `vocab` single words.
+### Vocabulary Suggestion Generation (MANDATORY — 2-step logic)
+- Both `analyze-writing` (v20+) and `analyze-conversation` (v7+) use a **2-step approach** for `new_vocabulary_suggestions` / `vocabulary_suggestions`:
+  - **STEP 1 — Error-linked items (highest priority)**: After identifying `error_highlights`, for every error whose type is `vocab`, `phrasal_verb`, `idiom`, or `linking_word`, add the **corrected form** as a vocabulary suggestion. These are the most pedagogically important items — the learner made these exact mistakes and should add them to their Study List.
+  - **STEP 2 — Elevation items**: After error-linked items, add additional new words/phrases targeting i+1 CEFR complexity to help the learner grow beyond their current level. Total array: 4–6 items.
+- **Type diversity rule** (across ALL items combined): MUST include at least 1 `phrasal_verb`, 1 `linking_word`, and 1 `idiom`.
 - Valid types: `vocab` | `phrasal_verb` | `idiom` | `linking_word`
 - ⚠️ `linking_word` (discourse connectors: *however, moreover, in contrast*) ≠ `linking_verb` (grammar term for BE/seem/appear). The former is correct.
 - ⚠️ The DB constraint `vocab_master_type_check` only allows `linking_word`. Using `linking_verb` causes a DB insert error.
+- ⚠️ Field 7 (`error_highlights`) prompt must explicitly remind the AI: "The corrected forms of vocab/phrasal_verb/idiom/linking_word errors MUST flow into vocabulary_suggestions."
 
 ### `creditVocabUsage()` — Mastery Credit on Usage (Phase 16)
 - Both `analyze-writing` (v15+) and `analyze-conversation` (v2+) call this shared helper after AI analysis completes.
