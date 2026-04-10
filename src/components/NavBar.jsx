@@ -5,6 +5,7 @@ import { useAuth } from '../App.jsx'
 
 const navItems = [
   { to: '/conversation', icon: '💬',  label: 'Conversation' },
+  { to: '/reading',      icon: '📖',  label: 'Reading' },
   { to: '/writing',      icon: '✍️',  label: 'Writing Space' },
   { to: '/study-list',   icon: '📚',  label: 'Study List' },
   { to: '/review',       icon: '🔁',  label: 'Review' },
@@ -13,6 +14,7 @@ const navItems = [
   { to: '/stats',        icon: '📊',  label: 'My Stats' },
   { to: '/settings',     icon: '⚙️',  label: 'Settings' },
 ]
+
 
 // Load persisted theme on module init (before first render)
 const savedTheme = localStorage.getItem('linguistai-theme')

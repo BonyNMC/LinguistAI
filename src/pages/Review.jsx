@@ -56,18 +56,24 @@ export default function Review() {
   const [dueWords, setDueWords] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentIdx, setCurrentIdx] = useState(0)
-  const [phase, setPhase] = useState('idle') // idle | generating | challenge | evaluating | result
+  const [phase, setPhase] = useState('idle') // idle | generating | challenge | evaluating | result | cloze-generating | cloze | cloze-result
   const [challenge, setChallenge] = useState(null)
   const [userSentence, setUserSentence] = useState('')
   const [evalResult, setEvalResult] = useState(null)
   const [error, setError] = useState('')
-  const [storyMode, setStoryMode] = useState(false)
+  const [mode, setMode] = useState('challenge') // 'challenge' | 'story' | 'cloze'
   const [storyContext, setStoryContext] = useState(null)
   const [shadowingActive, setShadowingActive] = useState(false)
   const [shadowingText, setShadowingText] = useState('')
   const [recognizedText, setRecognizedText] = useState('')
   const [shadowingScore, setShadowingScore] = useState(null)
   const [shadowingListening, setShadowingListening] = useState(false)
+  const [shadowingWordDiff, setShadowingWordDiff] = useState([]) // [{word, hit: bool}]
+  const [phonetic, setPhonetic] = useState(null) // IPA string for current word
+  const [shadowingAttempts, setShadowingAttempts] = useState(0)
+  const [clozeData, setClozeData] = useState(null)
+  const [clozeInput, setClozeInput] = useState('')
+  const [clozeResult, setClozeResult] = useState(null) // {passed, userAnswer, target}
 
   useEffect(() => { fetchDue() }, [session])
 
@@ -112,21 +118,51 @@ export default function Review() {
     setUserSentence('')
     setShadowingActive(false)
     setShadowingScore(null)
+    setShadowingWordDiff([])
+    setShadowingAttempts(0)
     setRecognizedText('')
+    setClozeData(null)
+    setClozeInput('')
+    setClozeResult(null)
     try {
       const { data, error: fnErr } = await supabase.functions.invoke('generate-challenge', {
         body: {
           vocab_id: current.vocab_master.id,
           user_id: session.user.id,
-          story_mode: storyMode,
+          story_mode: mode === 'story',
           story_context: storyContext,
         }
       })
       if (fnErr) throw fnErr
       if (data?.error) throw new Error(data.error)
-      if (storyMode && data.story_context) setStoryContext(data.story_context)
+      if (mode === 'story' && data.story_context) setStoryContext(data.story_context)
       setChallenge(data)
       setPhase('challenge')
+    } catch (e) {
+      setError(e.message)
+      setPhase('idle')
+    }
+  }
+
+  async function handleGenerateCloze() {
+    setPhase('cloze-generating')
+    setError('')
+    setClozeData(null)
+    setClozeInput('')
+    setClozeResult(null)
+    setShadowingActive(false)
+    setShadowingScore(null)
+    setShadowingWordDiff([])
+    setShadowingAttempts(0)
+    setRecognizedText('')
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke('generate-cloze', {
+        body: { vocab_id: current.vocab_master.id }
+      })
+      if (fnErr) throw fnErr
+      if (data?.error) throw new Error(data.error)
+      setClozeData(data)
+      setPhase('cloze')
     } catch (e) {
       setError(e.message)
       setPhase('idle')
@@ -154,11 +190,9 @@ export default function Review() {
       let update = { last_reviewed_at: new Date().toISOString() }
 
       if (current.status === 'mastered') {
-        // Maintenance review: no SM-2 progression, just pass/fail check
         const { mastery, status, next_review_due_at } = calcMaintenanceResult(data.passed)
         update = { ...update, mastery_level: mastery, status, next_review_due_at }
       } else {
-        // Normal SRS review: full SM-2 progression
         const quality = data.passed ? Math.min(5, Math.round(3 + data.score / 33)) : 1
         const { ef, reps, next_review_due_at, mastery, status } = calcNextReview(
           current.mastery_level, quality, current.ef_factor, current.repetitions
@@ -181,11 +215,45 @@ export default function Review() {
     }
   }
 
+  function handleSubmitCloze() {
+    if (!clozeInput.trim() || !clozeData) return
+    const userAns = clozeInput.trim().toLowerCase()
+    const target = clozeData.target_word.toLowerCase()
+    // Accept if exact match or edit distance 1 (typo tolerance)
+    const editDist = (a, b) => {
+      const m = Array.from({ length: a.length + 1 }, (_, i) =>
+        Array.from({ length: b.length + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0)
+      )
+      for (let i = 1; i <= a.length; i++)
+        for (let j = 1; j <= b.length; j++)
+          m[i][j] = a[i-1] === b[j-1] ? m[i-1][j-1] : 1 + Math.min(m[i-1][j], m[i][j-1], m[i-1][j-1])
+      return m[a.length][b.length]
+    }
+    const passed = userAns === target || editDist(userAns, target) <= 1
+    setClozeResult({ passed, userAnswer: clozeInput.trim(), target: clozeData.target_word })
+    setPhase('cloze-result')
+
+    // Update SRS same as challenge
+    const quality = passed ? 4 : 1
+    let update = { last_reviewed_at: new Date().toISOString() }
+    if (current.status === 'mastered') {
+      const { mastery, status, next_review_due_at } = calcMaintenanceResult(passed)
+      update = { ...update, mastery_level: mastery, status, next_review_due_at }
+    } else {
+      const { ef, reps, next_review_due_at, mastery, status } = calcNextReview(
+        current.mastery_level, quality, current.ef_factor, current.repetitions
+      )
+      update = { ...update, mastery_level: mastery, ef_factor: ef, repetitions: reps, next_review_due_at }
+      if (status) update.status = status
+    }
+    supabase.from('user_vocab_progress').update(update).eq('id', current.id)
+  }
+
   function handleNext() {
     if (currentIdx + 1 >= dueWords.length) {
       fetchDue()
       setCurrentIdx(0)
-      if (storyMode) setStoryContext(null)
+      if (mode === 'story') setStoryContext(null)
     } else {
       setCurrentIdx(i => i + 1)
     }
@@ -196,13 +264,19 @@ export default function Review() {
     setError('')
     setShadowingActive(false)
     setShadowingScore(null)
+    setShadowingWordDiff([])
+    setShadowingAttempts(0)
     setRecognizedText('')
+    setClozeData(null)
+    setClozeInput('')
+    setClozeResult(null)
   }
 
   function startShadowing(text) {
     setShadowingText(text)
     setShadowingActive(true)
     setShadowingScore(null)
+    setShadowingWordDiff([])
     setRecognizedText('')
     setShadowingListening(false)
     window.speechSynthesis.cancel()
@@ -210,6 +284,17 @@ export default function Review() {
     utt.lang = 'en-US'
     utt.rate = 0.85
     window.speechSynthesis.speak(utt)
+    // Fetch IPA for current word
+    const wordToFetch = current?.vocab_master?.word_phrase?.split(' ')[0]
+    if (wordToFetch) {
+      fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(wordToFetch)}`)
+        .then(r => r.json())
+        .then(d => {
+          const ipa = d?.[0]?.phonetics?.find(p => p.text)?.text
+          if (ipa) setPhonetic(ipa)
+        })
+        .catch(() => {})
+    }
   }
 
   function startListening() {
@@ -222,6 +307,7 @@ export default function Review() {
     setShadowingListening(true)
     setRecognizedText('')
     setShadowingScore(null)
+    setShadowingWordDiff([])
     rec.onresult = (e) => {
       const spoken = e.results[0][0].transcript
       setRecognizedText(spoken)
@@ -230,6 +316,10 @@ export default function Review() {
       const hits = spokenWords.filter(w => targetWords.includes(w)).length
       const score = targetWords.length > 0 ? Math.round((hits / targetWords.length) * 100) : 0
       setShadowingScore(score)
+      // Word-level diff for highlighting
+      const diff = targetWords.map(w => ({ word: w, hit: spokenWords.includes(w) }))
+      setShadowingWordDiff(diff)
+      setShadowingAttempts(a => a + 1)
       setShadowingListening(false)
     }
     rec.onerror = () => { setShadowingListening(false) }
@@ -248,26 +338,26 @@ export default function Review() {
       <div className="page-header">
         <div className="page-header-text">
           <h1 className="page-title">Review</h1>
-          <p className="page-subtitle">Active recall through writing challenges. Spaced repetition keeps you sharp.</p>
+          <p className="page-subtitle">Active recall through challenges. Spaced repetition keeps you sharp.</p>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-          <label htmlFor="story-mode-toggle" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)', cursor: 'pointer' }}>📖 Story Mode</label>
-          <button
-            id="story-mode-toggle"
-            role="switch"
-            aria-checked={storyMode}
-            onClick={() => { setStoryMode(m => !m); setStoryContext(null) }}
-            style={{
-              width: 44, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer',
-              background: storyMode ? 'var(--clr-accent)' : 'var(--clr-bg-elevated)',
-              position: 'relative', transition: 'background .2s', flexShrink: 0,
-            }}
-          >
-            <span style={{
-              display: 'block', width: 18, height: 18, borderRadius: '50%', background: '#fff',
-              position: 'absolute', top: 3, left: storyMode ? 23 : 3, transition: 'left .2s',
-            }} />
-          </button>
+        {/* Mode toggles */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          {[{ id: 'challenge', label: '✍️ Challenge' }, { id: 'story', label: '📖 Story' }, { id: 'cloze', label: '✏️ Cloze' }].map(m => (
+            <button
+              key={m.id}
+              id={`mode-${m.id}-btn`}
+              onClick={() => { setMode(m.id); if (m.id !== 'story') setStoryContext(null) }}
+              style={{
+                padding: '4px 12px', borderRadius: 'var(--radius-full)', border: 'none',
+                fontSize: 'var(--font-size-xs)', fontWeight: 600, cursor: 'pointer',
+                background: mode === m.id ? 'var(--clr-accent)' : 'var(--clr-bg-elevated)',
+                color: mode === m.id ? '#fff' : 'var(--clr-text-secondary)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -330,34 +420,50 @@ export default function Review() {
               {/* Phase: idle */}
               {phase === 'idle' && (
                 <div className="card" style={{ textAlign: 'center', padding: 'var(--space-10)' }}>
-                  <div style={{ fontSize: 40, marginBottom: 'var(--space-4)' }}>✍️</div>
-                  {storyMode && storyContext && (
+                  <div style={{ fontSize: 40, marginBottom: 'var(--space-4)' }}>
+                    {mode === 'cloze' ? '✏️' : '✍️'}
+                  </div>
+                  {mode === 'story' && storyContext && (
                     <div style={{ background: 'var(--clr-bg-base)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', marginBottom: 'var(--space-4)', textAlign: 'left', fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', lineHeight: 1.7 }}>
                       <div style={{ fontWeight: 700, color: 'var(--clr-accent-light)', marginBottom: 4 }}>📖 Story so far…</div>
                       {storyContext.slice(0, 280)}{storyContext.length > 280 ? '…' : ''}
                     </div>
                   )}
-                  <p style={{ color: 'var(--clr-text-secondary)', marginBottom: 'var(--space-6)' }}>
-                    {current.status === 'mastered'
-                      ? <>This is a <strong style={{ color: '#f59e0b' }}>Maintenance Review</strong>. Prove you still remember <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong> — use it correctly in context.</>
-                      : storyMode
-                        ? storyContext
-                          ? <>The story continues… use <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong> in the next scene.</>
-                          : <>Start an epic story using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.</>
-                        : <>Your AI coach will create a real-world scenario for you to write a sentence using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.</>
-                    }
-                  </p>
-                  <button className="btn btn-primary btn-lg" onClick={handleGenerateChallenge} id="start-challenge-btn">
-                    {storyMode ? '📖 Continue Story' : '🎯 Start Challenge'}
+                  {mode === 'cloze' && (
+                    <p style={{ color: 'var(--clr-text-secondary)', marginBottom: 'var(--space-4)', fontSize: 'var(--font-size-sm)', maxWidth: 400, margin: '0 auto var(--space-4)' }}>
+                      AI will give you a sentence with a blank. Fill in <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong> without being told what the word is.
+                    </p>
+                  )}
+                  {mode !== 'cloze' && (
+                    <p style={{ color: 'var(--clr-text-secondary)', marginBottom: 'var(--space-6)' }}>
+                      {current.status === 'mastered'
+                        ? <>This is a <strong style={{ color: '#f59e0b' }}>Maintenance Review</strong>. Prove you still remember <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong> — use it correctly in context.</>
+                        : mode === 'story'
+                          ? storyContext
+                            ? <>The story continues… use <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong> in the next scene.</>
+                            : <>Start an epic story using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.</>
+                          : <>Your AI coach will create a real-world scenario for you to write a sentence using <strong style={{ color: 'var(--clr-text-primary)' }}>{current.vocab_master.word_phrase}</strong>.</>
+                      }
+                    </p>
+                  )}
+                  <button
+                    className="btn btn-primary btn-lg"
+                    onClick={mode === 'cloze' ? handleGenerateCloze : handleGenerateChallenge}
+                    id="start-challenge-btn"
+                  >
+                    {mode === 'story' ? '📖 Continue Story' : mode === 'cloze' ? '✏️ Start Cloze' : '🎯 Start Challenge'}
                   </button>
                 </div>
               )}
 
+
               {/* Phase: generating */}
-              {phase === 'generating' && (
+              {(phase === 'generating' || phase === 'cloze-generating') && (
                 <div className="card" style={{ textAlign: 'center', padding: 'var(--space-12)' }}>
                   <div className="spinner" style={{ width: 36, height: 36, margin: '0 auto var(--space-4)' }} />
-                  <p style={{ color: 'var(--clr-text-secondary)' }}>Creating your challenge scenario…</p>
+                  <p style={{ color: 'var(--clr-text-secondary)' }}>
+                    {phase === 'cloze-generating' ? 'Creating your cloze exercise…' : 'Creating your challenge scenario…'}
+                  </p>
                 </div>
               )}
 
@@ -395,6 +501,70 @@ export default function Review() {
                       Submit Answer
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Phase: cloze */}
+              {phase === 'cloze' && clozeData && (
+                <div className="card">
+                  <div className="section-title" style={{ color: 'var(--clr-accent-light)', margin: 0, marginBottom: 'var(--space-3)' }}>✏️ Fill in the Blank</div>
+                  <div style={{ background: 'var(--clr-bg-base)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', lineHeight: 2, fontSize: 'var(--font-size-base)', color: 'var(--clr-text-primary)', marginBottom: 'var(--space-4)' }}>
+                    {clozeData.cloze_text}
+                  </div>
+                  <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)' }}>
+                      Hint: it's a <strong>{clozeData.hint_label}</strong>{clozeData.word_count > 1 ? ` (${clozeData.word_count} words)` : ''}
+                    </span>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="cloze-input">Your answer:</label>
+                    <input
+                      id="cloze-input"
+                      className="form-input"
+                      placeholder={`Type the missing ${clozeData.hint_label}…`}
+                      value={clozeInput}
+                      onChange={e => setClozeInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && clozeInput.trim() && handleSubmitCloze()}
+                      autoFocus
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)' }}>
+                    <button className="btn btn-secondary" onClick={() => { setPhase('idle'); setClozeData(null) }}>Skip</button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSubmitCloze}
+                      disabled={!clozeInput.trim()}
+                      id="submit-cloze-btn"
+                    >
+                      Check Answer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Phase: cloze-result */}
+              {phase === 'cloze-result' && clozeResult && (
+                <div className="card animate-fade-in" style={{ borderColor: clozeResult.passed ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+                    <div style={{ fontSize: 48 }}>{clozeResult.passed ? '🎉' : '💪'}</div>
+                    <div>
+                      <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: clozeResult.passed ? 'var(--clr-success)' : 'var(--clr-danger)' }}>
+                        {clozeResult.passed ? 'Correct!' : 'Not quite!'}
+                      </div>
+                      <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)' }}>
+                        The answer was: <strong style={{ color: 'var(--clr-accent-light)' }}>{clozeResult.target}</strong>
+                        {!clozeResult.passed && <> — you wrote: <em style={{ color: 'var(--clr-danger)' }}>{clozeResult.userAnswer}</em></>}
+                      </div>
+                    </div>
+                  </div>
+                  {clozeData?.definition && (
+                    <div style={{ background: 'var(--clr-bg-base)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', marginBottom: 'var(--space-4)', fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-secondary)' }}>
+                      💡 <strong>{clozeResult.target}</strong>: {clozeData.definition}
+                    </div>
+                  )}
+                  <button className="btn btn-primary" onClick={handleNext} id="next-word-btn">
+                    {currentIdx + 1 >= dueWords.length ? '✅ Finish Session' : 'Next Word →'}
+                  </button>
                 </div>
               )}
 
@@ -444,25 +614,42 @@ export default function Review() {
 
                   {shadowingActive && (
                     <div style={{ marginTop: 'var(--space-5)', borderTop: '1px solid var(--clr-border)', paddingTop: 'var(--space-5)' }}>
-                      <div className="section-title">🎙 Shadowing Practice</div>
-                      <div style={{ background: 'var(--clr-bg-base)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', marginBottom: 'var(--space-4)', fontSize: 'var(--font-size-sm)', lineHeight: 1.8, color: 'var(--clr-text-secondary)' }}>
-                        {shadowingText}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                        <div className="section-title" style={{ margin: 0 }}>🎙 Shadowing Practice</div>
+                        {phonetic && (
+                          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-accent-light)', background: 'rgba(99,102,241,0.1)', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
+                            {current.vocab_master.word_phrase} {phonetic}
+                          </span>
+                        )}
+                        {shadowingAttempts > 0 && <span style={{ fontSize: 10, color: 'var(--clr-text-muted)', marginLeft: 'auto' }}>Attempt {shadowingAttempts}/3</span>}
                       </div>
+                      {shadowingWordDiff.length > 0 ? (
+                        <div style={{ background: 'var(--clr-bg-base)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', marginBottom: 'var(--space-4)', fontSize: 'var(--font-size-sm)', lineHeight: 2, display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {shadowingWordDiff.map((item, i) => (
+                            <span key={i} style={{ color: item.hit ? 'var(--clr-success)' : 'var(--clr-danger)', fontWeight: item.hit ? 400 : 600 }}>{item.word}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ background: 'var(--clr-bg-base)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', marginBottom: 'var(--space-4)', fontSize: 'var(--font-size-sm)', lineHeight: 1.8, color: 'var(--clr-text-secondary)' }}>
+                          {shadowingText}
+                        </div>
+                      )}
                       <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
                         <button className="btn btn-ghost btn-sm" onClick={() => startShadowing(shadowingText)} id="replay-tts-btn">🔊 Replay Audio</button>
                         <button
                           className={`btn btn-sm ${shadowingListening ? 'btn-danger' : 'btn-primary'}`}
                           onClick={startListening}
-                          disabled={shadowingListening}
+                          disabled={shadowingListening || shadowingAttempts >= 3}
                           id="start-listening-btn"
                         >
-                          {shadowingListening ? '\u23fa Listening\u2026' : '\uD83C\uDF99 Speak Now'}
+                          {shadowingListening ? '⏺ Listening…' : '🎙 Speak Now'}
                         </button>
+                        {shadowingAttempts >= 3 && <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', alignSelf: 'center' }}>Max attempts reached</span>}
                       </div>
                       {recognizedText && (
                         <div style={{ marginBottom: 'var(--space-4)' }}>
                           <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', marginBottom: 4 }}>You said:</div>
-                          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-primary)', fontStyle: 'italic' }}>\u201c{recognizedText}\u201d</div>
+                          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--clr-text-primary)', fontStyle: 'italic' }}>"{recognizedText}"</div>
                         </div>
                       )}
                       {shadowingScore !== null && (
@@ -471,14 +658,15 @@ export default function Review() {
                             <div style={{ width: `${shadowingScore}%`, height: '100%', background: shadowingScore >= 70 ? 'var(--clr-success)' : shadowingScore >= 40 ? 'var(--clr-warning)' : 'var(--clr-danger)', borderRadius: 'var(--radius-full)', transition: 'width 0.5s ease' }} />
                           </div>
                           <div style={{ fontWeight: 800, fontSize: 'var(--font-size-lg)', color: shadowingScore >= 70 ? 'var(--clr-success)' : shadowingScore >= 40 ? 'var(--clr-warning)' : 'var(--clr-danger)' }}>{shadowingScore}%</div>
-                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)' }}>{shadowingScore >= 70 ? '\uD83C\uDF89 Excellent!' : shadowingScore >= 40 ? '\uD83D\uDC4D Good try!' : '\uD83D\uDCAA Try again!'}</div>
+                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)' }}>{shadowingScore >= 70 ? '🎉 Excellent!' : shadowingScore >= 40 ? '👍 Good try!' : '💪 Try again!'}</div>
                         </div>
                       )}
                       {!window.SpeechRecognition && !window.webkitSpeechRecognition && (
-                        <div className="alert alert-info" style={{ marginTop: 'var(--space-3)' }}>\u2139\uFE0F Speech recognition requires Chrome or Edge browser.</div>
+                        <div className="alert alert-info" style={{ marginTop: 'var(--space-3)' }}>ℹ️ Speech recognition requires Chrome or Edge browser.</div>
                       )}
                     </div>
                   )}
+
                 </div>
               )}
             </div>

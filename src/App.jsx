@@ -13,6 +13,7 @@ import ConversationMode from './pages/ConversationMode.jsx'
 import Leaderboard from './pages/Leaderboard.jsx'
 import Stats from './pages/Stats.jsx'
 import History from './pages/History.jsx'
+import Reading from './pages/Reading.jsx'
 
 export const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -68,6 +69,7 @@ function AppLayout() {
           <Route path="/" element={<Navigate to="/conversation" replace />} />
           <Route path="/writing" element={<WritingSpace />} />
           <Route path="/conversation" element={<ConversationMode />} />
+          <Route path="/reading" element={<Reading />} />
           <Route path="/study-list" element={<StudyList />} />
           <Route path="/review" element={<Review />} />
           <Route path="/leaderboard" element={<Leaderboard />} />

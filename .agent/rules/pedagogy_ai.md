@@ -125,3 +125,52 @@ new → learning (0–79) → reviewing (80–99) → mastered (100) → [mainte
 ### Daily Mission Cache Invalidation
 - `DailyVocabMissions.jsx` caches the mission in `sessionStorage` key `linguist_daily_mission` for the session.
 - `Settings.jsx` **MUST** call `sessionStorage.removeItem('linguist_daily_mission')` on successful profile save (`handleSaveProfile`) so the new `focus_topic`/`ai_persona` takes effect immediately next time the user visits Writing or Conversation.
+
+---
+
+## 📖 Phase 21 — Tier 1: Graded Reading
+
+### i+1 Reading Passage Generation
+- `generate-reading` always targets **CEFR i+1** (one level above `cefr_detected`). Never i+2 or same level.
+- The passage must **naturally embed** 2–3 of the user's current study words. The words must fit organically — never forced.
+- 3 comprehension question types (MANDATORY): factual (directly stated), vocabulary-in-context, inference (reading between the lines).
+- sessionStorage key `linguist_reading_session` caches the current reading session across React Router unmounts.
+
+### Error Pattern Intelligence (Stats Page)
+- Aggregates `error_highlights[]` from last 30 analyzed `user_writings` and `conversation_sessions`.
+- Grouping by `type` (grammar/vocab/phrasal_verb/idiom/linking_word) reveals systemic weaknesses.
+- Top 5 recurring specific errors are shown as `original → corrected` pairs.
+- **Pure client-side** — no new API call. Data already exists from analyze-writing/analyze-conversation.
+
+---
+
+## ✏️ Phase 21 — Tier 1: Contextual Cloze Review
+
+### Cloze Principles
+- `generate-cloze` creates 2–3 sentences where the target word is replaced by `_____` (5 underscores).
+- Context must provide enough inference for an attentive learner to guess the blank.
+- **Typo tolerance**: frontend accepts user input where Levenshtein edit distance ≤ 1 from target (catches minor typos, not wild guesses).
+- Cloze results update SRS (SM-2) the same as challenge mode.
+
+---
+
+## 🎙️ Phase 21 — Tier 2: Enhanced Shadowing
+
+### Word-Level Diff
+- After SpeechRecognition captures spoken input, compute word-level diff vs. target text.
+- Each word color-coded: **green** = hit (spoken correctly), **red** = miss.
+- IPA phonetic tooltip fetched from `https://api.dictionaryapi.dev/api/v2/entries/en/{word}` (free, no key needed). Fetched on `startShadowing()`.
+- Max **3 attempts** per shadowing session — prevents infinite loop frustration.
+
+---
+
+## ✍️ Phase 21 — Tier 2: Writing Genre Scaffolding
+
+### Genre Rules
+- `GENRES` constant in `WritingSpace.jsx` defines 6 genres: General, Formal Email, Opinion Essay, Narrative, Product Review, Argument.
+- **Selecting a genre**: auto-fills `scenarioContext` with `"This is a [Genre]. Please evaluate accordingly."` (only if scenarioContext is currently empty).
+- **Structure outline + useful phrases** expand below genre selector.
+- **Clickable phrases** insert into the textarea at current cursor position (appended to text).
+- `genre` field is sent to `analyze-writing` via body — the Edge Function uses it in the `scenarioInstruction` to evaluate genre-appropriate register.
+- ⚠️ `GENRES` is static frontend data — never stored in DB or Edge Functions.
+

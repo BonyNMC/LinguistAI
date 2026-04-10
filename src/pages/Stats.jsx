@@ -203,6 +203,7 @@ export default function Stats() {
   const [activityByDay, setActivityByDay] = useState({})
   const [practiceByDay, setPracticeByDay] = useState({})
   const [recentActivity, setRecentActivity] = useState([])
+  const [errorPatterns, setErrorPatterns] = useState({ byType: {}, topErrors: [] })
 
   useEffect(() => { fetchStats() }, [])
 
@@ -221,7 +222,7 @@ export default function Stats() {
           .select('mastery_level, status, last_reviewed_at')
           .eq('user_id', uid),
         supabase.from('user_writings')
-          .select('created_at').eq('user_id', uid),
+          .select('created_at, writing_analysed').eq('user_id', uid),
         supabase.from('conversation_sessions')
           .select('created_at, analysis').eq('user_id', uid),
         supabase.from('user_vocab_progress')
@@ -249,6 +250,26 @@ export default function Stats() {
         const d = r.created_at?.slice(0, 10); if (d) aByDay[d] = (aByDay[d] || 0) + 1
       })
       setActivityByDay(aByDay)
+
+      // Error Pattern Intelligence: aggregate from writings + conversations
+      const byType = {}
+      const errorMap = {}
+      const collectErrors = (highlights) => {
+        if (!Array.isArray(highlights)) return
+        highlights.forEach((e) => {
+          if (!e?.type) return
+          byType[e.type] = (byType[e.type] || 0) + 1
+          const key = `${e.original?.toLowerCase()}→${e.corrected?.toLowerCase()}`
+          if (key && e.original && e.corrected) {
+            if (!errorMap[key]) errorMap[key] = { count: 0, original: e.original, corrected: e.corrected }
+            errorMap[key].count++
+          }
+        })
+      }
+      ;(writingsRes.data || []).forEach((r) => collectErrors(r.writing_analysed?.error_highlights))
+      ;(convsRes.data || []).forEach((r) => collectErrors(r.analysis?.error_highlights))
+      const topErrors = Object.values(errorMap).sort((a, b) => b.count - a.count).slice(0, 5)
+      setErrorPatterns({ byType, topErrors })
 
       // Build daily practice chart (vocab reviews by day)
       const pByDay = {}
@@ -363,6 +384,61 @@ export default function Stats() {
               </div>
             </div>
           )}
+
+          {/* ── Error Pattern Intelligence ── */}
+          {Object.keys(errorPatterns.byType).length > 0 && (() => {
+            const typeLabels = { grammar: 'Grammar', vocab: 'Vocabulary', phrasal_verb: 'Phrasal Verbs', idiom: 'Idioms', linking_word: 'Linking Words' }
+            const typeColors = { grammar: '#f87171', vocab: '#60a5fa', phrasal_verb: '#818cf8', idiom: '#fb923c', linking_word: '#34d399' }
+            const maxCount = Math.max(...Object.values(errorPatterns.byType))
+            const sorted = Object.entries(errorPatterns.byType).sort((a, b) => b[1] - a[1])
+            return (
+              <div className="card">
+                <div className="section-title">🔍 Your Error Patterns</div>
+                <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-muted)', marginBottom: 'var(--space-4)' }}>
+                  Based on your last 30 analyzed sessions. Most frequent errors by type.
+                </p>
+                {/* Bar chart */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
+                  {sorted.map(([type, count]) => (
+                    <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                      <div style={{ width: 110, fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-secondary)', textAlign: 'right', flexShrink: 0 }}>
+                        {typeLabels[type] || type}
+                      </div>
+                      <div style={{ flex: 1, height: 10, background: 'var(--clr-bg-elevated)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${(count / maxCount) * 100}%`,
+                          height: '100%',
+                          background: typeColors[type] || 'var(--clr-accent)',
+                          borderRadius: 'var(--radius-full)',
+                          transition: 'width 0.5s ease',
+                        }} />
+                      </div>
+                      <div style={{ width: 28, fontSize: 'var(--font-size-xs)', fontWeight: 700, color: typeColors[type] || 'var(--clr-text-muted)', textAlign: 'right', flexShrink: 0 }}>
+                        {count}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Top specific errors */}
+                {errorPatterns.topErrors.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--clr-text-muted)', marginBottom: 'var(--space-2)' }}>TOP RECURRING MISTAKES</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                      {errorPatterns.topErrors.map((e, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-3)', background: 'var(--clr-bg-elevated)', borderRadius: 'var(--radius-md)', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 10, color: 'var(--clr-text-muted)', minWidth: 14 }}>#{i + 1}</span>
+                          <span style={{ color: 'var(--clr-danger)', fontSize: 'var(--font-size-xs)', textDecoration: 'line-through' }}>{e.original}</span>
+                          <span style={{ color: 'var(--clr-text-muted)', fontSize: 10 }}>→</span>
+                          <span style={{ color: 'var(--clr-success)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>{e.corrected}</span>
+                          <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--clr-text-muted)' }}>{e.count}×</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )
+          })()}
         </>
       )}
     </div>

@@ -165,6 +165,36 @@ function AnalysisResult({ result, onAddWord, addedWords }) {
   )
 }
 
+// ── Genre Scaffolding Data ────────────────────────────────────────
+const GENRES = {
+  general: { label: 'General', icon: '✏️', template: null, phrases: [] },
+  formal_email: {
+    label: 'Formal Email', icon: '📧',
+    template: 'Opening (greeting + purpose) → Body (main points, evidence) → Closing (call-to-action, sign-off)',
+    phrases: ['I am writing to…', 'Further to our conversation,', 'I would be grateful if…', 'Please do not hesitate to contact me', 'I look forward to hearing from you', 'Yours sincerely,'],
+  },
+  opinion_essay: {
+    label: 'Opinion Essay', icon: '📝',
+    template: 'Introduction (hook + thesis) → Body Paragraph 1 (argument + evidence) → Body Paragraph 2 (counterargument + rebuttal) → Conclusion (restate + call-to-action)',
+    phrases: ['In my opinion,', 'It is widely believed that', 'On the one hand… On the other hand,', 'Furthermore,', 'Nevertheless,', 'To conclude,'],
+  },
+  narrative: {
+    label: 'Narrative', icon: '📖',
+    template: 'Setting the scene → Rising action → Climax → Falling action → Resolution',
+    phrases: ['It all began when…', 'Suddenly,', 'Meanwhile,', 'Before long,', 'Looking back,', 'What I didn\'t know was…'],
+  },
+  product_review: {
+    label: 'Product Review', icon: '⭐',
+    template: 'Overview (what it is) → Pros → Cons → Verdict (rating + recommendation)',
+    phrases: ['Overall, I would say…', 'One major advantage is', 'However, a downside is', 'I would recommend this to…', 'In terms of value for money,', 'My final verdict is'],
+  },
+  argument: {
+    label: 'Argument', icon: '⚖️',
+    template: 'Claim → Evidence → Warrant → Counterargument → Rebuttal → Conclusion',
+    phrases: ['The evidence clearly shows', 'Critics might argue that', 'However, this overlooks', 'It is therefore clear that', 'Given the above,', 'Undeniably,'],
+  },
+}
+
 // ── Main WritingSpace ──────────────────────────────────────────────
 export default function WritingSpace() {
   const { session } = useAuth()
@@ -178,6 +208,8 @@ export default function WritingSpace() {
   const [loading, setLoading]   = useState(false)
   const [saving, setSaving]     = useState(false)  // for Save button
   const [savedFlash, setSavedFlash] = useState(false)
+  const [selectedGenre, setSelectedGenre] = useState('general')
+  const [genreExpanded, setGenreExpanded] = useState(false)
 
   // Keep sessionStorage in sync with state
   useEffect(() => { writeSS(SS_TEXT,   text)          }, [text])
@@ -191,9 +223,10 @@ export default function WritingSpace() {
     setLoading(true)
     setError('')
     setResult(null)
+    const genre = selectedGenre !== 'general' ? GENRES[selectedGenre]?.label : undefined
     try {
       const { data, error: fnError } = await supabase.functions.invoke('analyze-writing', {
-        body: { writing_text: text, scenario_context: scenarioContext }
+        body: { writing_text: text, scenario_context: scenarioContext, genre }
       })
       if (fnError) throw fnError
       if (data?.error) throw new Error(data.error)
@@ -273,14 +306,77 @@ export default function WritingSpace() {
       <DailyVocabMissions />
 
       <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
+        {/* Genre Selector */}
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--clr-text-muted)', display: 'block', marginBottom: 'var(--space-2)' }}>✍️ Writing Genre</label>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            {Object.entries(GENRES).map(([key, g]) => (
+              <button
+                key={key}
+                id={`genre-${key}-btn`}
+                onClick={() => {
+                  setSelectedGenre(key)
+                  if (key !== 'general' && !scenarioContext) {
+                    setScenarioContext(`This is a ${g.label}. Please evaluate accordingly.`)
+                  }
+                  setGenreExpanded(key !== 'general')
+                }}
+                disabled={loading}
+                style={{
+                  padding: '4px 12px', borderRadius: 'var(--radius-full)', border: 'none',
+                  fontSize: 'var(--font-size-xs)', fontWeight: 600, cursor: 'pointer',
+                  background: selectedGenre === key ? 'var(--clr-accent)' : 'var(--clr-bg-elevated)',
+                  color: selectedGenre === key ? '#fff' : 'var(--clr-text-secondary)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {g.icon} {g.label}
+              </button>
+            ))}
+          </div>
+          {/* Template & Phrases panel */}
+          {genreExpanded && selectedGenre !== 'general' && GENRES[selectedGenre] && (
+            <div className="animate-fade-in" style={{ marginTop: 'var(--space-3)', background: 'var(--clr-bg-base)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)' }}>
+              {GENRES[selectedGenre].template && (
+                <div style={{ marginBottom: 'var(--space-3)' }}>
+                  <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--clr-text-muted)', marginBottom: 4 }}>STRUCTURE OUTLINE</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-secondary)', lineHeight: 1.7 }}>{GENRES[selectedGenre].template}</div>
+                </div>
+              )}
+              {GENRES[selectedGenre].phrases.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--clr-text-muted)', marginBottom: 'var(--space-2)' }}>USEFUL PHRASES</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                    {GENRES[selectedGenre].phrases.map((p, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setText(prev => prev ? `${prev} ${p}` : p)}
+                        style={{
+                          padding: '3px 10px', borderRadius: 'var(--radius-full)',
+                          border: '1px solid var(--clr-border)', background: 'var(--clr-bg-elevated)',
+                          fontSize: 'var(--font-size-xs)', color: 'var(--clr-text-secondary)',
+                          cursor: 'pointer', transition: 'all 0.1s ease',
+                        }}
+                        title="Click to insert into writing"
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div style={{ marginBottom: 'var(--space-4)' }}>
            <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--clr-text-muted)', display: 'block', marginBottom: 'var(--space-2)' }}>🎭 Scenario Context (Optional)</label>
-           <input 
-             className="form-input" 
-             style={{ width: '100%', fontSize: 'var(--font-size-sm)' }} 
-             placeholder="Optional: What is the context? (e.g. Formal email, casual chat, academic essay)" 
-             value={scenarioContext} 
-             onChange={e => setScenarioContext(e.target.value)} 
+           <input
+             className="form-input"
+             style={{ width: '100%', fontSize: 'var(--font-size-sm)' }}
+             placeholder="Optional: What is the context? (e.g. Formal email, casual chat, academic essay)"
+             value={scenarioContext}
+             onChange={e => setScenarioContext(e.target.value)}
              disabled={loading}
            />
         </div>

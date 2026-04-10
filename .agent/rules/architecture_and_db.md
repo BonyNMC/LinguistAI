@@ -23,15 +23,16 @@
 - ⚠️ `'linking_verb'` is **WRONG** and will cause a DB constraint violation. Always use `'linking_word'`.
 - The DB migration was applied on 2026-04-10 to fix the old incorrect constraint. The constraint is now authoritative.
 
-## ⚡ Edge Functions (4 total — KEEP SEPARATE)
+## ⚡ Edge Functions (8 total — KEEP SEPARATE)
 ### 1. `save-api-key`
 - Input: `{ raw_api_key }`
 - Encrypts and saves to `user_profiles.api_key_encrypted`.
 - Critical: Disables gateway JWT check; validates internally.
 
-### 2. `analyze-writing` (v17 current)
-- Input: `{ writing_text, scenario_context }`
+### 2. `analyze-writing` (v20 current)
+- Input: `{ writing_text, scenario_context, genre? }`
 - Hybrid Prompt + Multi-Provider support via `callLLM()`.
+- `genre` param (e.g. "Formal Email") is appended to prompt when provided, enabling genre-aware register evaluation.
 - After analysis: calls `creditVocabUsage()` to award +10 mastery for each study word found in the writing text.
 - Returns: `{ analysed_text_marked_up, recall_report, native_spoken_rewrite, new_vocabulary_suggestions, cefr_estimate, tone_evaluation, error_highlights, credited_words[] }`
 
@@ -115,3 +116,63 @@
 - Calls LLM to generate a `{ topic, prompt }` — a mission briefing that naturally frames the context so the user practices the weak words.
 - Fallback (no words): returns a generic intro mission with `no_words: true`.
 - Output: `{ mission_words[], topic, prompt, no_words }`.
+
+## ⚡ Edge Functions (Phase 21 additions)
+
+### 8. `generate-reading` (NEW — Tier 1 Graded Reading)
+- Input: none (reads user from JWT)
+- Reads: `cefr_detected`, `focus_topic`, `api_key_encrypted`, top 5 study words
+- Logic: generates an i+1 CEFR passage (180–240 words) using study words, + 3 comprehension questions
+- Saves result to `reading_sessions` table
+- Output: `{ id, topic, passage, cefr_level, vocab_words[], questions[] }`
+
+### 9. `generate-cloze` (NEW — Tier 1 Contextual Cloze Review)
+- Input: `{ vocab_id }`
+- Fetches word details from `vocab_master`, reads user profile for context
+- Generates 2–3 natural sentences with the target word replaced by `_____`
+- Output: `{ cloze_text, target_word, hint_label, word_count, definition }`
+- Typo tolerance: frontend accepts edit distance ≤ 1 from target word
+
+## 🗄️ Phase 21 — New Table
+
+### `reading_sessions`
+- `id` (uuid, PK)
+- `user_id` (uuid, FK → auth.users)
+- `passage_text` (text)
+- `cefr_level` (text)
+- `topic` (text)
+- `vocab_words` (text[]) — study words embedded in passage
+- `questions` (jsonb) — `[{question, options[], correct_index, explanation}]`
+- `user_answers` (jsonb) — `{q_index: chosen_index}`
+- `score` (integer) — 0-100, set after submit
+- `created_at` (timestamptz)
+- RLS: owner-only read/write via `reading_sessions_own` policy
+
+## 🖥️ Phase 21 — Frontend Features
+
+### New Page: `/reading` (Reading.jsx)
+- AI-generated graded reading passages at i+1 CEFR
+- Study words highlighted with `.mark-recall` class
+- 3 comprehension questions (factual, vocab-in-context, inference)
+- SRS-linked: answers saved to `reading_sessions`
+- Recent reading history panel (6 sessions)
+- sessionStorage key: `linguist_reading_session`
+
+### Modified: Stats.jsx — Error Pattern Intelligence
+- Pulls `writing_analysed.error_highlights[]` from last 30 `user_writings`
+- Pulls `analysis.error_highlights[]` from last 30 `conversation_sessions`
+- Aggregates by error type → inline CSS bar chart
+- Lists top 5 recurring specific errors (original → corrected pairs)
+- No new API calls — pure client-side aggregation from existing data
+
+### Modified: Review.jsx — 3-Mode Toggle + Enhanced Features
+- Mode toggle: ✍️ Challenge | 📖 Story | ✏️ Cloze (replaces old Story Mode switch)
+- **Cloze Mode**: calls `generate-cloze`, user fills blank, edit-distance tolerance
+- **Enhanced Shadowing**: word-level diff (green=hit, red=miss), IPA phonetic from Dictionary API, max 3 attempts counter
+
+### Modified: WritingSpace.jsx — Genre Scaffolding
+- Genre selector: General | Formal Email | Opinion Essay | Narrative | Product Review | Argument
+- Selecting a genre auto-fills Scenario Context and reveals structure outline + clickable useful phrases
+- `genre` field sent to `analyze-writing` for genre-aware register evaluation
+- `GENRES` constant is hardcoded (no API needed)
+
