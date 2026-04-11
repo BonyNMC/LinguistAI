@@ -59,6 +59,10 @@ export default function NavBar() {
   }, [isAdmin])
 
   async function handleSignOut() {
+    // Clear all cached session data to prevent leaking between users
+    Object.keys(sessionStorage)
+      .filter(k => k.startsWith('linguist_'))
+      .forEach(k => sessionStorage.removeItem(k))
     await supabase.auth.signOut()
     navigate('/auth')
   }

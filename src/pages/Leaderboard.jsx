@@ -49,7 +49,8 @@ export default function Leaderboard() {
       if (timeFilter === 'this_week') {
         const day = now.getDay()
         const diff = now.getDate() - day + (day === 0 ? -6 : 1) // adjust for Monday
-        const monday = new Date(now.setDate(diff))
+        const monday = new Date(now)
+        monday.setDate(diff)
         monday.setHours(0,0,0,0)
         p_start_date = monday.toISOString()
       } else if (timeFilter === 'this_month') {

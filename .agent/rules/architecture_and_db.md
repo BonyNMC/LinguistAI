@@ -245,3 +245,32 @@
 - "🎯 Practice" button appears next to grammar error bar (only visible when grammar error count > 0)
 - Navigates to `/review?grammar=grammar`
 
+---
+
+## 🛡️ Phase 23 — Audit & Database Optimization (2026-04-11)
+
+### RLS Policy Rules (MANDATORY for all future policies)
+- **ALWAYS** use `(select auth.uid())` instead of `auth.uid()` in RLS policies. The subquery form evaluates ONCE per query instead of per-row, which is critical for performance at scale.
+- **NEVER** create multiple permissive policies for the same role + action on a table. Merge into a single policy with OR conditions.
+- Example:
+```sql
+-- ✅ CORRECT
+USING ((select auth.uid()) = user_id)
+-- ❌ WRONG (re-evaluates per row)
+USING (auth.uid() = user_id)
+```
+
+### Database Indexes (Current State)
+All foreign key columns MUST have covering indexes. Current indexes:
+- `idx_reading_sessions_user_id` ON `reading_sessions(user_id)`
+- `idx_user_vocab_progress_vocab_id` ON `user_vocab_progress(vocab_id)`
+- `idx_user_writings_user_id` ON `user_writings(user_id)`
+
+### Accepted Architectural Risks
+1. **`vocab_master` open INSERT/UPDATE policies**: By design — shared global dictionary. Each user's learning progress is isolated in `user_vocab_progress` (which has proper per-user RLS). No user can see another user's study list or mastery data.
+2. **Admin bypasses `AccessGuard`**: Single admin (project owner) must always access `/admin` even if accidentally self-suspended. `/admin` route wraps `AuthGuard > AdminGuard` but NOT `AccessGuard`.
+
+### Frontend Fixes Applied
+- **`NavBar.jsx`**: `handleSignOut()` now clears all `linguist_*` sessionStorage keys before `supabase.auth.signOut()` — prevents data leak between user sessions on same tab.
+- **`Leaderboard.jsx`**: Fixed date mutation bug in "This Week" filter — `new Date(now)` copy created before `.setDate()` mutation.
+
