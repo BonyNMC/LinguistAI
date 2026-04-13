@@ -49,6 +49,14 @@ export default function GrammarMode({ session, autoLoad }) {
     const score = Math.round((results.filter(r => r.passed).length / results.length) * 100)
     setGrammarScore(score)
     setGrammarSubmitted(true)
+
+    // Log review session for leaderboard activity
+    supabase.from('review_sessions').insert({
+      user_id: session.user.id,
+      review_mode: 'grammar',
+      words_reviewed: results.length,
+      score,
+    }).then(({ error: re }) => { if (re) console.warn('[GrammarMode] review log:', re.message) })
   }
 
   const allGrammarAnswered = grammarData && grammarData.exercises.every((_, i) => grammarAnswers[i] !== undefined)

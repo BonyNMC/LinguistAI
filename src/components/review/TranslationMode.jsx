@@ -58,43 +58,32 @@ export default function TranslationMode({ session }) {
       setEvalResult(data)
       setPhase('result')
 
-      // SRS update for vocab words in this exercise
+      // SRS update for vocab words that appeared in this exercise (case-insensitive)
       const progressIds = currentExercise.progress_ids || {}
       const vocabWords = currentExercise.vocab_words || []
       const vocabIds = currentExercise.vocab_ids || []
       const wordsUsed = (data.words_used || []).map(w => w.toLowerCase().trim())
       const wordsMissed = (data.words_missed || []).map(w => w.toLowerCase().trim())
-      const updatedIds = new Set()
 
-      // Strategy 1: Per-word SRS based on LLM evaluation (case-insensitive)
       for (let i = 0; i < vocabWords.length; i++) {
         const word = vocabWords[i]?.toLowerCase().trim()
         const vocabId = vocabIds[i]
         const progressId = vocabId && progressIds[vocabId]
-        if (!progressId || updatedIds.has(progressId)) continue
+        if (!progressId) continue
         const quality = wordsUsed.includes(word) ? 4 : wordsMissed.includes(word) ? 1 : (data.passed ? 3 : 2)
         const { data: row } = await supabase.from('user_vocab_progress')
           .select('id,mastery_level,ef_factor,repetitions,status').eq('id', progressId).single()
-        if (row) {
-          await updateSrsAfterReview(supabase, progressId, row, quality)
-          updatedIds.add(progressId)
-        }
+        if (row) await updateSrsAfterReview(supabase, progressId, row, quality)
       }
 
-      // Strategy 2: If no per-word updates happened but progress_ids exist,
-      // still update all matched words based on overall pass/fail
-      if (updatedIds.size === 0 && Object.keys(progressIds).length > 0) {
-        const quality = data.passed ? 4 : 1
-        for (const [vocabId, progressId] of Object.entries(progressIds)) {
-          if (updatedIds.has(progressId)) continue
-          const { data: row } = await supabase.from('user_vocab_progress')
-            .select('id,mastery_level,ef_factor,repetitions,status').eq('id', progressId).single()
-          if (row) {
-            await updateSrsAfterReview(supabase, progressId, row, quality)
-            updatedIds.add(progressId)
-          }
-        }
-      }
+      // Log review session for leaderboard activity count
+      await supabase.from('review_sessions').insert({
+        user_id: session.user.id,
+        review_mode: 'translation',
+        words_reviewed: vocabWords.length || 1,
+        score: data.score ?? null,
+      }).then(({ error: re }) => { if (re) console.warn('[TranslationMode] review log:', re.message) })
+
     } catch (e) {
       setError(e.message)
       setPhase('active')

@@ -75,6 +75,16 @@ export default function ClozeMode({ dueWords, session }) {
       }
       await supabase.from('user_vocab_progress').update(update).eq('id', progressId)
     }
+
+    // Log review session for leaderboard activity
+    const correct = results.filter(r => r.passed).length
+    await supabase.from('review_sessions').insert({
+      user_id: session.user.id,
+      review_mode: 'cloze',
+      words_reviewed: results.length,
+      score: Math.round((correct / results.length) * 100),
+    }).then(({ error: re }) => { if (re) console.warn('[ClozeMode] review log:', re.message) })
+
     setClozeSubmitting(false)
   }
 

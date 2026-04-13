@@ -159,10 +159,10 @@ export default function Leaderboard() {
           {/* How to earn breakdown */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-2)' }}>
             {[
-              { icon: '✍️', title: 'Writing / Conversation', points: '+20 per analyzed session', detail: 'Use vocab from your Study List to earn +10 mastery pts per word', color: '#60a5fa' },
-              { icon: '🔄', title: 'Review (SRS)', points: '+8 mastery pts per pass', detail: 'Words reach mastery 80 → Reviewing, 100 → fully Mastered (+100 Overall)', color: '#a78bfa' },
-              { icon: '🌟', title: 'Words Mastered', points: '+100 per word at 100%', detail: 'Reach mastery 100 through repeated review + real usage in writing', color: '#34d399' },
-              { icon: '🔥', title: 'Daily Streak', points: '+10 per streak day', detail: 'Analyze writing or conversation at least once per day to maintain streak', color: '#fb923c' },
+              { icon: '✍️', title: 'Writing / Conversation', points: '+20 per session', detail: 'Each analyzed writing or conversation session = +20 activity points', color: '#60a5fa' },
+              { icon: '🔄', title: 'Review (SRS)', points: '+20 per exercise', detail: 'Challenge, Cloze, Translation, Grammar — each submitted exercise = +20 activity + mastery points', color: '#a78bfa' },
+              { icon: '🌟', title: 'Words Mastered', points: '+100 per word', detail: 'Reach mastery 100 through repeated review + real usage in writing', color: '#34d399' },
+              { icon: '🔥', title: 'Daily Streak', points: '+10 per day', detail: 'Analyze writing or conversation at least once per day to maintain streak', color: '#fb923c' },
             ].map((item, i) => (
               <div key={i} style={{ background: 'var(--clr-bg-raised)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', borderLeft: `3px solid ${item.color}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>

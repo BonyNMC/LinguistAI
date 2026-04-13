@@ -76,6 +76,15 @@ export default function ChallengeMode({ current, dueWords, currentIdx, storyCont
         if (status) update.status = status
       }
       await supabase.from('user_vocab_progress').update(update).eq('id', current.id)
+
+      // Log review session for leaderboard activity
+      await supabase.from('review_sessions').insert({
+        user_id: session.user.id,
+        review_mode: mode === 'story' ? 'story' : 'challenge',
+        words_reviewed: 1,
+        score: data.score ?? null,
+      }).then(({ error: re }) => { if (re) console.warn('[ChallengeMode] review log:', re.message) })
+
     } catch (e) {
       setError(e.message)
       setPhase('challenge')
