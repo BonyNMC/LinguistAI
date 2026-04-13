@@ -78,8 +78,9 @@
 
 ### `get_leaderboard` (FUNCTION/RPC)
 - Signature: `(p_start_date timestamptz, p_end_date timestamptz)` returning TABLE.
-- Aggregates `user_vocab_progress`, `conversation_sessions`, `user_writings` filtered by date ranges.
-- Calculates an `overall_score` = `(mastered * 100) + (activity * 20) + (streak * 10) + mastery points`.
+- Aggregates `user_vocab_progress`, `conversation_sessions`, `user_writings`, `review_sessions` filtered by date ranges.
+- `total_activity_count` = writing sessions + conversation sessions (with analysis) + **review sessions**
+- Calculates an `overall_score` = `(mastered * 100) + (activity * 20) + (streak * 10) + mastery_points`.
 - Only includes `account_status = 'active'` AND `show_on_leaderboard = true`
 - Returns TABLE: `user_id`, `username`, `cefr_detected`, `target_level`, `total_mastery_points`, `words_mastered`, `total_activity_count`, `current_streak`, `best_streak`, `overall_score`
 
@@ -165,8 +166,20 @@
 - Lists top 5 recurring specific errors (original → corrected pairs)
 - No new API calls — pure client-side aggregation from existing data
 
-### Modified: Review.jsx — 3-Mode Toggle + Enhanced Features (Phase 21)
-- Mode toggle: ✍️ Challenge | 📖 Story | ✏️ Cloze (replaced old Story Mode switch)
+### Modified: Review.jsx — 5-Mode Toggle + Modular Architecture (Phase 21 → Phase 24)
+- Mode toggle: ✍️ Challenge | 📖 Story | ✏️ Cloze | 🔄 Translation | 📏 Grammar
+- **Phase 24 Modular Refactor**: Monolithic `Review.jsx` (945 lines) decomposed into slim orchestrator (~160 lines) + 4 mode components + shared SRS module.
+- **File structure**:
+  - `src/pages/Review.jsx` — Orchestrator: mode tabs, due-word fetching, routing to mode components
+  - `src/lib/srs.js` — Shared SRS business logic: `calcNextReview()`, `calcMaintenanceResult()`, `editDist()`, `updateSrsAfterReview()`
+  - `src/components/review/ChallengeMode.jsx` — Challenge/Story word review
+  - `src/components/review/ClozeMode.jsx` — Multi-blank cloze passages
+  - `src/components/review/GrammarMode.jsx` — Grammar MCQ drills
+  - `src/components/review/TranslationMode.jsx` — VN→EN translation practice
+  - `src/components/review/ClozePassage.jsx` — Inline `[N]` → `<input>` renderer
+  - `src/components/review/GrammarCard.jsx` — Individual grammar MCQ card
+  - `src/components/review/ShadowingPanel.jsx` — Speech recognition + word-diff
+- **All 4 review modes** log to `review_sessions` table after each exercise → counted as activity on leaderboard
 - **Cloze Mode** (Phase 21, SUPERSEDED by Phase 22 — see below)
 - **Enhanced Shadowing**: word-level diff (green=hit, red=miss), IPA phonetic from Dictionary API, max 3 attempts counter
 
@@ -273,4 +286,62 @@ All foreign key columns MUST have covering indexes. Current indexes:
 ### Frontend Fixes Applied
 - **`NavBar.jsx`**: `handleSignOut()` now clears all `linguist_*` sessionStorage keys before `supabase.auth.signOut()` — prevents data leak between user sessions on same tab.
 - **`Leaderboard.jsx`**: Fixed date mutation bug in "This Week" filter — `new Date(now)` copy created before `.setDate()` mutation.
+
+---
+
+## ⚡ Edge Functions (Phase 24 — Translation Review)
+
+### 12. `generate-translation` (NEW)
+- **Input**: none (reads user from JWT)
+- **Logic**:
+  1. Queries last 30 `user_writings.writing_analysed.error_highlights[].corrected` (priority 1) + `native_spoken_rewrite` (priority 2)
+  2. Queries last 30 `conversation_sessions.analysis.error_highlights[].corrected` (priority 1)
+  3. Selects 3–5 unique sentences (≥10 chars), errors prioritized over rewrites
+  4. Fuzzy-matches study words using `wordAppearsIn()` (handles inflected forms: -ed, -ing, -s, etc.)
+  5. Calls LLM to translate English sentences → natural Vietnamese
+  6. Builds `progress_ids` map linking matched study words to their `user_vocab_progress` rows
+- **Output**:
+```json
+{
+  "exercises": [
+    {
+      "vietnamese": "Câu tiếng Việt tự nhiên...",
+      "english_reference": "Original corrected English sentence",
+      "source_type": "writing" | "conversation",
+      "error_type": "grammar" | "vocab" | null,
+      "vocab_words": ["tackle", "streamline"],
+      "vocab_ids": ["uuid1", "uuid2"],
+      "progress_ids": { "vocab_uuid": "progress_uuid" }
+    }
+  ]
+}
+```
+
+### 13. `evaluate-translation` (NEW)
+- **Input**: `{ user_translation, reference_english, target_words[] }`
+- **Logic**: LLM compares user translation against reference, scores 0–100, identifies which target words were used/missed
+- **Output**: `{ passed: bool, score: int, feedback: string, reference: string, words_used[], words_missed[] }`
+- SRS update happens on frontend (per matched vocab word, case-insensitive)
+
+## 🗄️ Phase 24 — New Table
+
+### `review_sessions` (NEW)
+- `id` (bigint, auto-increment PK)
+- `user_id` (uuid, FK → auth.users, CASCADE)
+- `review_mode` (text, CHECK: 'challenge' | 'story' | 'cloze' | 'grammar' | 'translation')
+- `words_reviewed` (int, default 1)
+- `score` (int, nullable)
+- `created_at` (timestamptz, default now())
+- Index: `idx_review_sessions_user_created` ON (user_id, created_at)
+- RLS: users can INSERT and SELECT own rows only
+- **Purpose**: Each submitted review exercise logs a row → counted as activity in `get_leaderboard` (+20 per session)
+
+## 🖥️ Phase 24 — Shared SRS Module
+
+### `src/lib/srs.js` (NEW — Extracted from Review.jsx)
+- `calcNextReview(mastery, quality, ef, reps)` — SM-2 algorithm, returns `{ ef, reps, next_review_due_at, mastery, status }`
+- `calcMaintenanceResult(passed)` — Mastered word re-check: pass=stay 100/mastered/+90d, fail=70/reviewing/+3d
+- `editDist(a, b)` — Levenshtein distance for typo tolerance
+- `updateSrsAfterReview(supabase, progressId, progressRow, quality)` — Shared DB updater used by ChallengeMode, ClozeMode, TranslationMode
+- Pure functions (no React, no side-effects except `updateSrsAfterReview` which writes to DB)
 

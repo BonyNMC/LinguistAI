@@ -201,6 +201,37 @@ new → learning (0–79) → reviewing (80–99) → mastered (100) → [mainte
 - Triggered from **Stats page**: "🎯 Practice" button next to Grammar bar → `/review?grammar=grammar`.
 - Review page detects `?grammar` URL param → auto-selects 📏 Grammar tab → auto-loads exercises.
 - Score shown as % after submitting all 5 — educator transparency.
-- "🔄 New Set" re-calls the Edge Function (may identify same or different grammar topic depending on latest error data).
+- \"🔄 New Set\" re-calls the Edge Function (may identify same or different grammar topic depending on latest error data).
 
+---
+
+## 🔄 Phase 24 — Translation Review Mode
+
+### VN→EN Translation Practice
+- **Pedagogical rationale**: Translation from L1 (Vietnamese) to L2 (English) exercises *productive retrieval* — the learner must compose the sentence from scratch using target grammar and vocabulary, not just recognize it.
+- **Source material**: Exercises are generated from the learner's **own** past errors and corrections, creating a personalized review loop:
+  - **Priority 1**: `error_highlights[].corrected` from `user_writings` and `conversation_sessions` (errors the user actually made)
+  - **Priority 2**: `native_spoken_rewrite` sentences from `user_writings` (model output)
+- **Flow**: `generate-translation` → LLM translates English sentences to Vietnamese → user translates back → `evaluate-translation` → LLM scores 0–100
+
+### Translation SRS Logic
+- SRS updates are **per-word** (only study words that appear in the exercise sentence get mastery updates).
+- Word matching uses `wordAppearsIn()` with **inflection-aware fuzzy matching**: "encounter" matches "encountered", "tackle" matches "tackling", etc.
+- If no study words match the sentence → **no mastery update** (by design — the exercise still counts as activity).
+- Quality mapping: word used correctly = quality 4, word missed = quality 1, word present but not in LLM's list = quality 3 (pass) or 2 (fail).
+
+### Hint System
+- Vocabulary hints are **hidden by default** — learner must click "💡 Show Hint" to reveal which study words to use.
+- Deliberate friction: prevents learners from passively reading hints instead of actively retrieving words.
+
+---
+
+## 🏆 Phase 24 — Leaderboard Activity Counting
+
+### Review Sessions as Activity
+- **Design decision**: Every submitted review exercise (Challenge, Cloze, Grammar, Translation) logs a row to `review_sessions` table.
+- `get_leaderboard` RPC now counts: `total_activity_count = user_writings + conversation_sessions + review_sessions`
+- Each exercise = **+20 Overall Score** (same weight as writing/conversation sessions).
+- **Rationale**: Even when a review exercise doesn't contain matched study words (no mastery change), the learner should still be rewarded for effort/engagement.
+- Grammar exercises (no SRS) still earn activity points — the learner practiced grammar even if it doesn't affect `user_vocab_progress`.
 
