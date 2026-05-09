@@ -10,6 +10,8 @@ const SS_TEXT   = 'linguist_writing_text'
 const SS_RESULT = 'linguist_writing_result'
 const SS_ERROR  = 'linguist_writing_error'
 const SS_ADDED  = 'linguist_writing_added'
+const SS_GENRE  = 'linguist_writing_genre'
+const SS_GENRE_EXP = 'linguist_writing_genre_expanded'
 
 function readSS(key, fallback) {
   try { const v = sessionStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback }
@@ -208,8 +210,8 @@ export default function WritingSpace() {
   const [loading, setLoading]   = useState(false)
   const [saving, setSaving]     = useState(false)  // for Save button
   const [savedFlash, setSavedFlash] = useState(false)
-  const [selectedGenre, setSelectedGenre] = useState('general')
-  const [genreExpanded, setGenreExpanded] = useState(false)
+  const [selectedGenre, setSelectedGenre] = useState(() => readSS(SS_GENRE, 'general'))
+  const [genreExpanded, setGenreExpanded] = useState(() => readSS(SS_GENRE_EXP, false))
 
   // Keep sessionStorage in sync with state
   useEffect(() => { writeSS(SS_TEXT,   text)          }, [text])
@@ -217,6 +219,8 @@ export default function WritingSpace() {
   useEffect(() => { writeSS(SS_RESULT, result)        }, [result])
   useEffect(() => { writeSS(SS_ERROR,  error)         }, [error])
   useEffect(() => { writeSS(SS_ADDED,  [...addedWords]) }, [addedWords])
+  useEffect(() => { writeSS(SS_GENRE, selectedGenre) }, [selectedGenre])
+  useEffect(() => { writeSS(SS_GENRE_EXP, genreExpanded) }, [genreExpanded])
 
   async function handleAnalyze() {
     if (!text.trim()) return
@@ -276,11 +280,14 @@ export default function WritingSpace() {
 
   function handleClear() {
     setText('')
+    setScenarioContext('')
     setResult(null)
     setError('')
     setAddedWords(new Set())
+    setSelectedGenre('general')
+    setGenreExpanded(false)
     // Explicitly wipe sessionStorage on clear
-    ;[SS_TEXT, SS_RESULT, SS_ERROR, SS_ADDED].forEach(k => sessionStorage.removeItem(k))
+    ;[SS_TEXT, SS_RESULT, SS_ERROR, SS_ADDED, SS_GENRE, SS_GENRE_EXP, 'linguist_writing_scenario'].forEach(k => sessionStorage.removeItem(k))
   }
 
   const charCount = text.length

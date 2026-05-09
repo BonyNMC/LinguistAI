@@ -5,6 +5,9 @@ import { SpeakButton } from '../components/SpeakButton.jsx'
 
 // ── sessionStorage keys ────────────────────────────────────────────
 const SS_READING = 'linguist_reading_session'
+const SS_READING_ANSWERS = 'linguist_reading_answers'
+const SS_READING_SUBMITTED = 'linguist_reading_submitted'
+const SS_READING_SCORE = 'linguist_reading_score'
 
 function readSS(key, fallback) {
   try { const v = sessionStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback }
@@ -116,9 +119,9 @@ function QuestionCard({ q, qIndex, selectedAnswer, onSelect, submitted }) {
 export default function Reading() {
   const { session } = useAuth()
   const [session_data, setSessionData] = useState(() => readSS(SS_READING, null))
-  const [answers, setAnswers] = useState({})
-  const [submitted, setSubmitted] = useState(false)
-  const [score, setScore] = useState(null)
+  const [answers, setAnswers] = useState(() => readSS(SS_READING_ANSWERS, {}))
+  const [submitted, setSubmitted] = useState(() => readSS(SS_READING_SUBMITTED, false))
+  const [score, setScore] = useState(() => readSS(SS_READING_SCORE, null))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [history, setHistory] = useState([])
@@ -126,6 +129,9 @@ export default function Reading() {
 
   useEffect(() => { fetchHistory() }, [])
   useEffect(() => { writeSS(SS_READING, session_data) }, [session_data])
+  useEffect(() => { writeSS(SS_READING_ANSWERS, answers) }, [answers])
+  useEffect(() => { writeSS(SS_READING_SUBMITTED, submitted) }, [submitted])
+  useEffect(() => { writeSS(SS_READING_SCORE, score) }, [score])
 
   async function fetchHistory() {
     setHistoryLoading(true)
@@ -187,7 +193,7 @@ export default function Reading() {
   }
 
   function handleNewSession() {
-    sessionStorage.removeItem(SS_READING)
+    ;[SS_READING, SS_READING_ANSWERS, SS_READING_SUBMITTED, SS_READING_SCORE].forEach(k => sessionStorage.removeItem(k))
     setSessionData(null)
     setAnswers({})
     setSubmitted(false)
